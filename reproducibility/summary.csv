@@ -1,8 +1,8 @@
 algorithm,family,formulation,depth,instances,reaches_certified_optimum,mean_absolute_gap,worst_absolute_gap,median_runtime_ms,runtime_note,mean_two_qubit_gates
-exhaustive,classical,qubo,,50,1.0,0.0,0.0,,"ground truth; timed once per instance, not per row",
-tabu,classical,qubo,,50,0.98,0.02,1.0,145.09,,
-annealing,classical,qubo,,50,0.92,0.08,1.0,41.33,,
-greedy,classical,native,,50,0.66,0.34,1.0,0.03,,
-qaoa_p3,quantum,qubo,3.0,50,0.7,0.38,2.0,1000.18,"CPU simulation cost, not QPU time",642.0
-qaoa_p2,quantum,qubo,2.0,50,0.68,0.38,2.0,497.01,"CPU simulation cost, not QPU time",428.0
-qaoa_p1,quantum,qubo,1.0,50,0.6,0.42,2.0,334.65,"CPU simulation cost, not QPU time",214.0
+exhaustive,classical,qubo,,25,1.0,0.0,0.0,7.58,"ground truth; timed once per instance, not per row",
+tabu,classical,qubo,,25,1.0,0.0,0.0,142.1,,
+annealing,classical,qubo,,25,0.88,0.12,1.0,39.76,,
+greedy,classical,native,,25,0.8,0.2,1.0,0.03,,
+qaoa_p2,quantum,qubo,2.0,25,0.72,0.32,2.0,469.5,"CPU simulation cost, not QPU time",418.0
+qaoa_p1,quantum,qubo,1.0,25,0.64,0.48,2.0,380.4,"CPU simulation cost, not QPU time",209.0
+qaoa_p3,quantum,qubo,3.0,25,0.64,0.4,2.0,890.4,"CPU simulation cost, not QPU time",628.0

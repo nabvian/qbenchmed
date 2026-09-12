@@ -74,7 +74,8 @@ class Result:
 
 
 def _summarise(A, w, c, x, K, algorithm, runtime_ms, *, alpha=1.0, beta=0.0,
-               seed=None, formulation="native", encoding=None, **extra) -> Result:
+               seed=None, formulation="native", encoding=None, arms=None,
+               **extra) -> Result:
     """Build a Result from a selection vector, scoring it natively.
 
     Every solver's answer is scored by the *same* native objective regardless of
@@ -85,8 +86,8 @@ def _summarise(A, w, c, x, K, algorithm, runtime_ms, *, alpha=1.0, beta=0.0,
     w = np.asarray(w, dtype=float)
     c = np.asarray(c, dtype=float)
     obj, feasible = qb.native_max_coverage_objective(
-        A, w, c, x, K, alpha=alpha, beta=beta)
-    covered = (A[x].sum(axis=0) > 0) if x.any() else np.zeros(A.shape[1], bool)
+        A, w, c, x, K, alpha=alpha, beta=beta, arms=arms)
+    covered = qb.coverage_mask(A, x, arms)
     return Result(
         algorithm=algorithm,
         objective_value=float(obj),
@@ -106,7 +107,7 @@ def _summarise(A, w, c, x, K, algorithm, runtime_ms, *, alpha=1.0, beta=0.0,
 # --------------------------------------------------------------------------
 # native-formulation solvers
 # --------------------------------------------------------------------------
-def exhaustive(A, w, c, K, *, alpha=1.0, beta=0.0, max_inputs=24) -> Result:
+def exhaustive(A, w, c, K, *, alpha=1.0, beta=0.0, max_inputs=24, arms=None) -> Result:
     """Enumerate every subset of inputs.  Ground truth for small instances."""
     A = np.asarray(A); w = np.asarray(w, float); c = np.asarray(c, float)
     n_in = A.shape[0]
@@ -123,16 +124,16 @@ def exhaustive(A, w, c, K, *, alpha=1.0, beta=0.0, max_inputs=24) -> Result:
             continue
         n_eval += 1
         obj, _ = qb.native_max_coverage_objective(A, w, c, x, K,
-                                                  alpha=alpha, beta=beta)
+                                                  alpha=alpha, beta=beta, arms=arms)
         if obj < best_obj:
             best_obj, best_x = obj, x
     dt = (time.perf_counter() - t0) * 1e3
-    return _summarise(A, w, c, best_x, K, "exhaustive", dt,
+    return _summarise(A, w, c, best_x, K, "exhaustive", dt, arms=arms,
                       alpha=alpha, beta=beta, certified_optimal=True,
                       subsets_evaluated=n_eval)
 
 
-def ilp(A, w, c, K, *, alpha=1.0, beta=0.0, time_limit=300.0) -> Result:
+def ilp(A, w, c, K, *, alpha=1.0, beta=0.0, time_limit=300.0, arms=None) -> Result:
     """Certified optimum of the native MILP via SciPy/HiGHS.
 
     Variables ``[x (n_in), y (n_out)]``, all integral in [0, 1]::
@@ -149,14 +150,36 @@ def ilp(A, w, c, K, *, alpha=1.0, beta=0.0, time_limit=300.0) -> Result:
 
     A = np.asarray(A, float); w = np.asarray(w, float); c = np.asarray(c, float)
     n_in, n_out = A.shape
-    n = n_in + n_out
+    z_members, support, always = qb.arm_support(A, arms, n_out)
+    n_z = len(z_members)
+    n = n_in + n_out + n_z
+    z_off = n_in + n_out
 
-    cost = np.concatenate([beta * c, -alpha * w])
+    cost = np.concatenate([beta * c, -alpha * w, np.zeros(n_z)])
 
-    # y_j - sum_i A_ij x_i <= 0
+    # y_j - sum_{v in support(j)} v <= 0.  An unconditional outcome has no
+    # linking row, so y_j is free to reach 1 -- matching the native semantics
+    # in which the engine emits it whatever the selection.
     link = np.zeros((n_out, n))
-    link[:, :n_in] = -A.T
-    link[:, n_in:] = np.eye(n_out)
+    for j in range(n_out):
+        if always[j]:
+            continue
+        link[j, n_in + j] = 1.0
+        for kind, idx in support[j]:
+            link[j, idx if kind == "x" else z_off + idx] -= 1.0
+
+    # An arm variable may only be 1 when every member input is selected:
+    # z_a - x_i <= 0 for each member.  Written per member rather than
+    # aggregated, because the aggregated form |S| z_a - sum x_i <= 0 has a
+    # weaker LP relaxation and makes the branch-and-bound slower.
+    and_rows = np.zeros((sum(len(m) for m in z_members), n))
+    r = 0
+    for a, mem in enumerate(z_members):
+        for i in mem:
+            and_rows[r, z_off + a] = 1.0
+            and_rows[r, int(i)] = -1.0
+            r += 1
+
     budget = np.zeros((1, n))
     budget[0, :n_in] = 1.0
 
@@ -164,6 +187,8 @@ def ilp(A, w, c, K, *, alpha=1.0, beta=0.0, time_limit=300.0) -> Result:
         LinearConstraint(link, -np.inf, 0.0),
         LinearConstraint(budget, -np.inf, float(K)),
     ]
+    if r:
+        constraints.append(LinearConstraint(and_rows, -np.inf, 0.0))
     t0 = time.perf_counter()
     res = milp(c=cost, constraints=constraints,
                integrality=np.ones(n), bounds=Bounds(0, 1),
@@ -174,41 +199,81 @@ def ilp(A, w, c, K, *, alpha=1.0, beta=0.0, time_limit=300.0) -> Result:
         raise RuntimeError(f"MILP did not return a solution: {res.message}")
     x = res.x[:n_in] > 0.5
     # res.status == 0 means proven optimal; anything else is a bound, not a proof
-    return _summarise(A, w, c, x, K, "ilp", dt, alpha=alpha, beta=beta,
+    return _summarise(A, w, c, x, K, "ilp", dt, alpha=alpha, beta=beta, arms=arms,
                       certified_optimal=bool(res.status == 0),
                       mip_gap=float(getattr(res, "mip_gap", 0.0) or 0.0),
                       solver_status=int(res.status), solver_message=str(res.message))
 
 
-def greedy(A, w, c, K, *, alpha=1.0, beta=0.0) -> Result:
-    """Marginal-gain selection with the submodular approximation bound recorded.
+def greedy(A, w, c, K, *, alpha=1.0, beta=0.0, arms=None) -> Result:
+    """Marginal-gain selection, with the validity of its bound recorded.
 
-    Weighted coverage is monotone submodular, so under a pure cardinality
-    constraint greedy achieves at least ``1 - 1/e`` (~63.2%) of the optimum.
-    That bound is on the *coverage* term; with a non-zero cost term (beta > 0)
-    the objective is no longer monotone and the guarantee does not apply, which
-    is recorded explicitly rather than left implied.
+    Under pure binary incidence weighted coverage is monotone submodular, so
+    with a cardinality constraint greedy attains at least ``1 - 1/e`` (~63.2%)
+    of the optimum.  Two things void that guarantee and both are reported
+    rather than left implied:
+
+      * ``beta > 0`` adds a cost term, so the objective is no longer monotone;
+      * a *conjunctive arm* makes coverage non-submodular.  The second member of
+        a two-input arm is worth nothing until the first is selected, so
+        marginal gain can *increase* as the selection grows -- the opposite of
+        diminishing returns.  Greedy can then stall with every remaining
+        single-input gain at zero while a pair would still pay, and
+        ``stalled_with_budget_remaining`` records when that happened.
+
+    This is why the flagship instance can separate greedy from a certified
+    optimum instead of reporting a tie.
     """
     A = np.asarray(A); w = np.asarray(w, float); c = np.asarray(c, float)
     n_in, n_out = A.shape
+    conjunctive = arms is not None and any(len(m) != 1 for _, m in arms)
     t0 = time.perf_counter()
     x = np.zeros(n_in, bool)
-    covered = np.zeros(n_out, bool)
     trace = []
-    for _ in range(min(K, n_in)):
-        gains = np.where(
-            x, -np.inf,
-            (A.astype(bool) & ~covered[None, :]) @ w * alpha - beta * c)
-        best = int(np.argmax(gains))
-        if gains[best] <= 0:
-            break                      # no positive-gain input remains
-        x[best] = True
-        covered |= A[best].astype(bool)
-        trace.append((best, float(gains[best])))
+    n_steps = min(K, n_in)
+    stalled = False
+    if arms is None:
+        covered = np.zeros(n_out, bool)
+        for _ in range(n_steps):
+            gains = np.where(
+                x, -np.inf,
+                (A.astype(bool) & ~covered[None, :]) @ w * alpha - beta * c)
+            best = int(np.argmax(gains))
+            if gains[best] <= 0:
+                stalled = True
+                break                  # no positive-gain input remains
+            x[best] = True
+            covered |= A[best].astype(bool)
+            trace.append((best, float(gains[best])))
+    else:
+        # Arms make the gain non-decomposable: adding an input can complete a
+        # conjunction, so gain must be evaluated through the coverage function
+        # rather than accumulated column-wise.
+        base = float(w[qb.coverage_mask(A, x, arms)].sum())
+        for _ in range(n_steps):
+            best, best_gain = -1, 0.0
+            for i in range(n_in):
+                if x[i]:
+                    continue
+                x[i] = True
+                g = alpha * (float(w[qb.coverage_mask(A, x, arms)].sum()) - base) \
+                    - beta * float(c[i])
+                x[i] = False
+                if g > best_gain:
+                    best, best_gain = i, g
+            if best < 0:
+                stalled = True
+                break
+            x[best] = True
+            base = float(w[qb.coverage_mask(A, x, arms)].sum())
+            trace.append((best, float(best_gain)))
     dt = (time.perf_counter() - t0) * 1e3
-    return _summarise(A, w, c, x, K, "greedy", dt, alpha=alpha, beta=beta,
-                      submodular_bound_applies=bool(beta == 0.0),
-                      approximation_ratio_bound=(1 - 1 / np.e) if beta == 0 else None,
+    bound_applies = bool(beta == 0.0 and not conjunctive)
+    return _summarise(A, w, c, x, K, "greedy", dt, alpha=alpha, beta=beta, arms=arms,
+                      submodular_bound_applies=bound_applies,
+                      approximation_ratio_bound=(1 - 1 / np.e) if bound_applies else None,
+                      objective_is_submodular=not conjunctive,
+                      stalled_with_budget_remaining=bool(stalled and int(x.sum()) < n_steps),
                       selection_trace=trace)
 
 
@@ -296,21 +361,23 @@ def tabu(Q_or_qubo, *, n_iters=2000, tenure=None, seed=0, n_restarts=4
 
 
 def solve_via_qubo(A, w, c, K, *, method="simulated_annealing",
-                   encoding="slack", seed=0, alpha=1.0, beta=0.0, **kw) -> Result:
+                   encoding="slack", seed=0, alpha=1.0, beta=0.0, arms=None,
+                   **kw) -> Result:
     """Build the QUBO, solve it, decode, and score natively.
 
     The decode-then-score-natively step is what makes a QUBO solver's result
     comparable to a native solver's: an infeasible QUBO optimum is reported as
     infeasible rather than silently accepted.
     """
-    q = qb.build_max_coverage(A, w, c, K, encoding=encoding, alpha=alpha, beta=beta)
+    q = qb.build_max_coverage(A, w, c, K, encoding=encoding, alpha=alpha,
+                              beta=beta, arms=arms)
     fn = {"simulated_annealing": simulated_annealing, "tabu": tabu}[method]
     t0 = time.perf_counter()
     z, energy, meta = fn(q, seed=seed, **kw)
     dt = (time.perf_counter() - t0) * 1e3
     x = q.varmap.x_of(z)
     res = _summarise(A, w, c, x, K, method, dt, alpha=alpha, beta=beta, seed=seed,
-                     formulation="qubo", encoding=encoding,
+                     formulation="qubo", encoding=encoding, arms=arms,
                      qubo_energy=energy, **meta)
     res.n_vars = q.n_vars
     return res

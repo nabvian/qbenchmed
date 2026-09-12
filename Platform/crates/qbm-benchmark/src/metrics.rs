@@ -24,14 +24,42 @@ pub struct StructuralMetrics {
     pub total_outcome_weight: f64,
     /// Sum of the weights of outcomes reachable by at least one input.
     pub reachable_outcome_weight: f64,
-    /// Sorted inputs incident to at least one outcome.
+    /// Sorted inputs that can advance at least one outcome's rule.
     pub active_inputs: Vec<String>,
-    /// Sorted inputs incident to no outcome.
+    /// Sorted inputs no relationship mentions at all.
     pub inert_inputs: Vec<String>,
-    /// Sorted outcomes incident to at least one input.
+    /// Sorted inputs that appear only as a block or as another edge's context,
+    /// so selecting one can never grant coverage.
+    ///
+    /// Distinct from inert: the profile does wire these, but only ever to say
+    /// "not this". Folding them in with the unmentioned inputs would hide the
+    /// more interesting of the two cases.
+    #[serde(default)]
+    pub veto_only_inputs: Vec<String>,
+    /// Sorted outcomes some selection can cover.
     pub reachable_outcomes: Vec<String>,
-    /// Sorted outcomes incident to no input.
+    /// Sorted outcomes no selection can cover.
+    ///
+    /// Under typed semantics an outcome can be unreachable even though
+    /// relationships mention it, when its arms can never be satisfied
+    /// together. That is a finding about the rule set, not a bookkeeping
+    /// artefact.
     pub unreachable_outcomes: Vec<String>,
+    /// Sorted outcomes covered by every selection, including the empty one.
+    #[serde(default)]
+    pub unconditional_outcomes: Vec<String>,
+    /// Number of conjunctive arms across all outcomes.
+    #[serde(default)]
+    pub arm_count: usize,
+    /// Number of arms needing more than one input present at once.
+    #[serde(default)]
+    pub conjunctive_arm_count: usize,
+    /// Whether coverage reduces to plain binary incidence.
+    ///
+    /// When false, coverage is not submodular and greedy carries no
+    /// approximation guarantee on this profile.
+    #[serde(default)]
+    pub purely_disjunctive: bool,
     /// Largest number of outcomes covered by one input.
     pub maximum_input_degree: usize,
     /// Largest number of inputs capable of covering one outcome.
@@ -74,27 +102,41 @@ pub fn structural_metrics(profile: &BenchmarkProfile) -> Result<StructuralMetric
         *outcome += 1;
     }
 
-    let active_inputs: Vec<_> = input_degree
+    // Roles and reachability come from the compiled rules, not from raw
+    // incidence counts. An input can appear in a dozen rows and still never be
+    // able to cover anything, and an outcome can have rows yet be unreachable
+    // because its arms contradict each other.
+    let model = crate::coverage::CoverageModel::compile(profile)?;
+    let roles = model.contribution_roles();
+    let mut active_inputs = Vec::new();
+    let mut inert_inputs = Vec::new();
+    let mut veto_only_inputs = Vec::new();
+    for (index, input) in profile.inputs.iter().enumerate() {
+        match roles[index] {
+            crate::coverage::InputRole::Contributing => active_inputs.push(input.id.clone()),
+            crate::coverage::InputRole::VetoOnly => veto_only_inputs.push(input.id.clone()),
+            crate::coverage::InputRole::Inert => inert_inputs.push(input.id.clone()),
+        }
+    }
+
+    let mut reachable_set: BTreeSet<&str> = BTreeSet::new();
+    let mut reachable_outcomes = Vec::new();
+    let mut unreachable_outcomes = Vec::new();
+    for (index, outcome) in profile.outcomes.iter().enumerate() {
+        if model.is_reachable(index) {
+            reachable_set.insert(outcome.id.as_str());
+            reachable_outcomes.push(outcome.id.clone());
+        } else {
+            unreachable_outcomes.push(outcome.id.clone());
+        }
+    }
+    let arm_count: usize = model.rules.iter().map(|rule| rule.arms.len()).sum();
+    let conjunctive_arm_count: usize = model
+        .rules
         .iter()
-        .filter(|(_, degree)| **degree > 0)
-        .map(|(id, _)| (*id).to_owned())
-        .collect();
-    let inert_inputs: Vec<_> = input_degree
-        .iter()
-        .filter(|(_, degree)| **degree == 0)
-        .map(|(id, _)| (*id).to_owned())
-        .collect();
-    let reachable_set: BTreeSet<_> = outcome_degree
-        .iter()
-        .filter(|(_, degree)| **degree > 0)
-        .map(|(id, _)| *id)
-        .collect();
-    let reachable_outcomes = reachable_set.iter().map(|id| (*id).to_owned()).collect();
-    let unreachable_outcomes = outcome_degree
-        .iter()
-        .filter(|(_, degree)| **degree == 0)
-        .map(|(id, _)| (*id).to_owned())
-        .collect();
+        .flat_map(|rule| &rule.arms)
+        .filter(|arm| arm.present_indices.len() > 1)
+        .count();
 
     let possible = profile.inputs.len() * profile.outcomes.len();
     let incidence_density = profile.relationships.len() as f64 / possible as f64;
@@ -115,8 +157,13 @@ pub fn structural_metrics(profile: &BenchmarkProfile) -> Result<StructuralMetric
         reachable_outcome_weight,
         active_inputs,
         inert_inputs,
+        veto_only_inputs,
         reachable_outcomes,
         unreachable_outcomes,
+        unconditional_outcomes: profile.unconditional_outcomes.clone(),
+        arm_count,
+        conjunctive_arm_count,
+        purely_disjunctive: profile.is_purely_disjunctive(),
         maximum_input_degree: input_degree.values().copied().max().unwrap_or(0),
         maximum_outcome_degree: outcome_degree.values().copied().max().unwrap_or(0),
     })

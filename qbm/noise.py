@@ -121,6 +121,10 @@ class NoisyRunReport:
     realised_error_count: int
     noise: dict
     energy_samples: list[float] = field(default_factory=list)
+    #: The lowest-energy bitstring drawn across trajectories.  Kept so a noisy
+    #: point can be reported as an *answer* -- a selection with a coverage and a
+    #: feasibility status -- and not only as a distribution of energies.
+    best_state: list[int] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         d = dict(self.__dict__)
@@ -156,6 +160,8 @@ def noisy_qaoa_energies(engine, params: np.ndarray, noise: NoiseModel, *,
     n_couplings = int(np.count_nonzero(np.triu(engine.J, 1)))
 
     energies = np.empty(trajectories)
+    best_bits = None
+    best_e = np.inf
     errors = 0
     for t in range(trajectories):
         sv = StateVector.plus_state(n, memory_limit_bytes=engine.memory_limit_bytes)
@@ -181,6 +187,8 @@ def noisy_qaoa_energies(engine, params: np.ndarray, noise: NoiseModel, *,
             errors += int(flip.sum())
             bits ^= flip
         energies[t] = engine.qubo.energy(bits)
+        if energies[t] < best_e:
+            best_e, best_bits = float(energies[t]), bits.copy()
 
     ref = float(optimum_energy) if optimum_energy is not None else float(energies.min())
     return NoisyRunReport(
@@ -192,4 +200,5 @@ def noisy_qaoa_energies(engine, params: np.ndarray, noise: NoiseModel, *,
         optimum_probability=float(np.mean(energies <= ref + 1e-9)),
         realised_error_count=int(errors),
         noise=noise.as_dict(),
-        energy_samples=[float(v) for v in energies])
+        energy_samples=[float(v) for v in energies],
+        best_state=[int(b) for b in best_bits] if best_bits is not None else [])

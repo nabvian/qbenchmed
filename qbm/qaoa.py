@@ -96,6 +96,14 @@ class QaoaOutcome:
     best_sampled_energy: float
     best_sampled_state: list[int]
     best_sample_probability: float
+    # The lowest-energy sample can violate the budget: the penalised QUBO
+    # energy and the constrained problem's feasibility are different questions,
+    # and a sample that breaks the budget still has a finite energy.  The best
+    # *feasible* sample is therefore reported alongside it, because that is the
+    # answer the algorithm can actually deliver to the constrained problem.
+    best_feasible_energy: float | None
+    best_feasible_state: list[int] | None
+    best_sample_feasible: bool | None
     optimum_probability: float
     near_optimum_probability: float
     feasible_probability: float
@@ -236,9 +244,19 @@ class Qaoa:
 
         if feasible_fn is None:
             feasible_probability = float("nan")
+            best_feasible_energy = best_feasible_state = best_sample_feasible = None
         else:
             flags = np.array([bool(feasible_fn(s.astype(bool))) for s in states])
             feasible_probability = float(probs[flags].sum())
+            best_sample_feasible = bool(flags[k_best])
+            if flags.any():
+                idx = np.flatnonzero(flags)
+                k_feas = int(idx[np.argmin(energies[idx])])
+                best_feasible_energy = float(energies[k_feas])
+                best_feasible_state = [int(v) for v in states[k_feas]]
+            else:
+                best_feasible_energy = None
+                best_feasible_state = None
 
         resources = ising_resource_cost(self.h, self.J, p,
                                         count_state_prep=self.count_state_prep)
@@ -252,6 +270,9 @@ class Qaoa:
             best_sampled_energy=best_energy,
             best_sampled_state=[int(v) for v in states[k_best]],
             best_sample_probability=float(probs[k_best]),
+            best_feasible_energy=best_feasible_energy,
+            best_feasible_state=best_feasible_state,
+            best_sample_feasible=best_sample_feasible,
             optimum_probability=optimum_probability,
             near_optimum_probability=near_probability,
             feasible_probability=feasible_probability,

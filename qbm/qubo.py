@@ -251,6 +251,7 @@ def build_max_coverage(
     beta: float = 0.0,
     gamma: float | None = None,
     lam: float | None = None,
+    arms: list[tuple[int, tuple[int, ...]]] | None = None,
 ) -> Qubo:
     """Maximum weighted outcome coverage under an input budget (spec 9.1).
 
@@ -273,9 +274,14 @@ def build_max_coverage(
     gamma = lam if gamma is None else float(gamma)
 
     if encoding == "pairwise":
+        if arms is not None and any(len(m) != 1 for _, m in arms):
+            raise ValueError(
+                "pairwise encoding eliminates y by writing the coverage "
+                "indicator directly in x; a conjunctive arm has no such form. "
+                "Use encoding='slack' for instances with rule arms.")
         return _build_pairwise(A, w, c, K, alpha=alpha, beta=beta, gamma=gamma)
     return _build_with_y(A, w, c, K, encoding=encoding,
-                         alpha=alpha, beta=beta, gamma=gamma, lam=lam)
+                         alpha=alpha, beta=beta, gamma=gamma, lam=lam, arms=arms)
 
 
 BudgetSense = Literal["at_most", "exactly", "at_least"]
@@ -332,59 +338,204 @@ def _budget_block(q: Qubo, n_in: int, K: int, gamma: float,
     q.offset += gamma * K * K
 
 
-def _build_with_y(A, w, c, K, *, encoding, alpha, beta, gamma, lam) -> Qubo:
+def arm_support(A, arms, n_out: int):
+    """Reduce conjunctive arms to a per-outcome list of QUBO support variables.
+
+    An outcome is covered iff at least one of its arms is fully selected, so the
+    coverage indicator is an OR over arms of an AND over inputs.  The AND needs
+    an auxiliary variable -- but only when the arm has two or more members:
+
+      * ``len(arm) == 1``  the arm's indicator *is* the input variable, so it is
+        used directly and costs no extra qubit.  A binary-incidence instance is
+        all singleton arms, which is why threading arms through changes neither
+        the variable count nor the matrix for instances that had no arms before.
+      * ``len(arm) >= 2``  gets one AND variable ``z_a`` constrained by
+        ``z_a <= x_i`` for every member.
+      * ``len(arm) == 0``  is satisfied unconditionally; the outcome then needs
+        no ``y`` variable at all and its weight enters the objective as a
+        constant, so it can never be mistaken for coverage the optimizer earned.
+
+    Returns ``(z_members, support, always)`` where ``support[j]`` is a list of
+    ``("x", i)`` / ``("z", a)`` tags and ``always[j]`` marks the constants.
+    """
+    n_in = A.shape[0]
+    if arms is None:
+        arms = [(int(j), (int(i),)) for i, j in np.argwhere(np.asarray(A) > 0)]
+    z_members: list[tuple[int, ...]] = []
+    z_index: dict[tuple[int, ...], int] = {}
+    support: list[list[tuple[str, int]]] = [[] for _ in range(n_out)]
+    always = np.zeros(n_out, dtype=bool)
+    for j, mem in arms:
+        if len(mem) == 0:
+            always[j] = True
+            continue
+        if len(mem) == 1:
+            tag = ("x", int(mem[0]))
+        else:
+            key = tuple(sorted(int(i) for i in mem))
+            if key not in z_index:
+                z_index[key] = len(z_members)
+                z_members.append(key)
+            tag = ("z", z_index[key])
+        if tag not in support[j]:
+            support[j].append(tag)
+    return z_members, support, always
+
+
+def best_completion_energy(q: Qubo, x) -> float:
+    """Lowest QUBO energy over all auxiliary variables, with ``x`` fixed.
+
+    Needed because QAOA's probability-of-optimum is a statement about the
+    *QUBO's* ground state while a classical certificate is a statement about the
+    native problem.  To compare them the certified selection has to be lifted
+    into the QUBO's full variable space at its best completion.
+
+    The completion is analytic under the exact (``slack``) encoding: an arm
+    variable is set whenever all its members are selected, an outcome variable
+    whenever its support is non-empty, and the equality slack absorbs the
+    remainder.  Only the budget slack is searched, over its at most a few dozen
+    values, because its sign convention belongs to ``_budget_block``.
+
+    The ``pairwise`` encoding is also accepted and falls out of the same code:
+    it carries no outcome, arm or equality-slack variables at all -- coverage is
+    written directly in the inputs -- so fixing ``x`` leaves only the budget
+    slack free and the search over it is exhaustive, hence exact.
+
+    The compact ``penalty`` encoding is refused.  Its coverage term is inexact
+    by construction, so the lowest energy consistent with ``x`` is not a
+    statement about the native objective of ``x`` and lifting a certificate
+    through it would compare two different problems.
+    """
+    encoding = q.meta.get("encoding")
+    if encoding not in ("slack", "pairwise"):
+        raise ValueError(f"best_completion_energy requires an exact encoding "
+                         f"('slack' or 'pairwise'); got {encoding!r}, whose "
+                         f"optimum need not correspond to a native optimum")
+    x = np.asarray(x, dtype=bool)
+    vm = q.varmap
+    n_in = vm.n_inputs
+    z_start = q.meta.get("arm_var_start", n_in + vm.n_outcomes_modelled)
+    members = [tuple(m) for m in q.meta.get("arm_members", [])]
+    support = {int(k): [tuple(t) for t in v]
+               for k, v in q.meta.get("support", {}).items()}
+
+    bits = np.zeros(q.n_vars, dtype=np.uint8)
+    bits[:n_in] = x
+
+    on = np.zeros(len(members), dtype=bool)
+    for a, mem in enumerate(members):
+        on[a] = all(x[int(i)] for i in mem)
+        bits[z_start + a] = on[a]
+
+    def support_on(tag) -> bool:
+        kind, idx = tag
+        return bool(x[idx]) if kind == "x" else bool(on[idx])
+
+    y_of = {j: n_in + k for k, j in enumerate(vm.outcome_ids)}
+    for j, start, nb in vm.slack_spec:
+        total = sum(1 for t in support.get(j, ()) if support_on(t))
+        y = 1 if total >= 1 else 0
+        bits[y_of[j]] = y
+        rest = total - y
+        for b in range(nb):
+            bits[start + b] = (rest >> b) & 1
+
+    start, nb = vm.budget_slack_spec
+    if nb == 0:
+        return float(q.energy(bits))
+    best = np.inf
+    for value in range(1 << nb):
+        for b in range(nb):
+            bits[start + b] = (value >> b) & 1
+        best = min(best, float(q.energy(bits)))
+    return float(best)
+
+
+def _build_with_y(A, w, c, K, *, encoding, alpha, beta, gamma, lam, arms=None) -> Qubo:
     n_in, n_out = A.shape
-    deg = A.sum(axis=0).astype(int)                 # inputs reaching each outcome
+    z_members, support, always = arm_support(A, arms, n_out)
+
+    # Outcomes satisfied unconditionally carry no decision: their weight is a
+    # constant of the objective, not coverage any selection achieved.
+    modelled = [j for j in range(n_out) if not always[j]]
+    y_index = {j: n_in + k for k, j in enumerate(modelled)}
+    n_y = len(modelled)
+    z_start = n_in + n_y
+    n_z = len(z_members)
 
     n_budget_bits = _binary_slack_bits(K)
     slack_spec: list[tuple[int, int, int]] = []
-    cursor = n_in + n_out
+    cursor = z_start + n_z
+    aux_base = cursor
     if encoding == "slack":
-        # y_j <= sum_i A_ij x_i  <=>  sum_i A_ij x_i - y_j - s_j = 0,
-        # s_j in [0, deg_j - 1] when y_j may be 1.
-        for j in range(n_out):
-            nb = _binary_slack_bits(max(deg[j] - 1, 0))
+        # y_j <= sum_{v in support(j)} v
+        #   <=>  sum_v v - y_j - s_j = 0,   s_j in [0, |support(j)| - 1]
+        for j in modelled:
+            nb = _binary_slack_bits(max(len(support[j]) - 1, 0))
             slack_spec.append((j, cursor, nb))
             cursor += nb
-    n_slack = cursor - (n_in + n_out)
+    n_slack = cursor - aux_base
     budget_start = cursor
     n_vars = cursor + n_budget_bits
 
-    vm = VarMap(n_inputs=n_in, n_outcomes_modelled=n_out, n_slack=n_slack,
+    vm = VarMap(n_inputs=n_in, n_outcomes_modelled=n_y, n_slack=n_slack + n_z,
                 n_budget_slack=n_budget_bits,
-                outcome_ids=tuple(range(n_out)),
+                outcome_ids=tuple(modelled),
                 slack_spec=tuple(slack_spec),
                 budget_slack_spec=(budget_start, n_budget_bits))
     q = Qubo.zeros(n_vars, varmap=vm,
                    meta={"mode": "max_coverage", "encoding": encoding,
                          "K": K, "alpha": alpha, "beta": beta,
-                         "gamma": gamma, "lam": lam})
+                         "gamma": gamma, "lam": lam,
+                         "n_arm_vars": n_z, "arm_var_start": z_start,
+                         "n_unconditional_outcomes": int(always.sum()),
+                         # recorded so a bitstring can be completed or audited
+                         # without re-deriving the arm reduction
+                         "arm_members": [list(m) for m in z_members],
+                         "support": {int(j): [list(t) for t in support[j]]
+                                     for j in modelled}})
+
+    def var(tag: tuple[str, int]) -> int:
+        kind, idx = tag
+        return idx if kind == "x" else z_start + idx
 
     # objective: reward coverage, charge input cost
-    for j in range(n_out):
-        q.add_linear(n_in + j, -alpha * w[j])
+    for j in modelled:
+        q.add_linear(y_index[j], -alpha * w[j])
+    for j in np.flatnonzero(always):
+        q.offset += -alpha * float(w[j])
     for i in range(n_in):
         q.add_linear(i, beta * c[i])
 
+    # AND linking for multi-input arms: lam * z_a * (1 - x_i) per member.
+    # One-directional by design -- z_a is never forced to 1, but it only ever
+    # helps the objective, so the minimiser sets it whenever the arm is fully
+    # selected.  Exactness is checked by enumeration in tests/test_qubo.py.
+    for a, mem in enumerate(z_members):
+        za = z_start + a
+        for i in mem:
+            q.add_linear(za, lam)
+            q.add_quadratic(za, int(i), -lam)
+
     if encoding == "slack":
-        # lam * (sum_i A_ij x_i - y_j - s_j)^2 -- exact equality constraint
+        # lam * (sum_v v - y_j - s_j)^2 -- exact equality constraint
         for j, start, nb in slack_spec:
-            terms = [(1.0, i) for i in np.flatnonzero(A[:, j])]
-            terms.append((-1.0, n_in + j))
+            terms = [(1.0, var(t)) for t in support[j]]
+            terms.append((-1.0, y_index[j]))
             terms += [(-(2.0 ** b), start + b) for b in range(nb)]
             for k, (ak, ik) in enumerate(terms):
                 q.add_linear(int(ik), lam * ak * ak)
                 for al, il in terms[k + 1:]:
                     q.add_quadratic(int(ik), int(il), lam * 2.0 * ak * al)
     else:  # "penalty" -- compact, inexact
-        # lam * sum_j y_j * (1 - sum_i A_ij x_i) as a quadratic form.  This
-        # penalises claiming an unreached outcome, but for deg_j >= 2 it also
-        # *rewards* claiming an outcome reached by several selected inputs,
-        # which is what breaks exactness.  See docs/formulation.md.
-        for j in range(n_out):
-            q.add_linear(n_in + j, lam)
-            for i in np.flatnonzero(A[:, j]):
-                q.add_quadratic(int(i), n_in + j, -lam)
+        # lam * sum_j y_j * (1 - sum_v v) as a quadratic form.  This penalises
+        # claiming an unsupported outcome, but for |support| >= 2 it also
+        # *rewards* claiming an outcome supported several times over, which is
+        # what breaks exactness.  See docs/formulation.md.
+        for j in modelled:
+            q.add_linear(y_index[j], lam)
+            for t in support[j]:
+                q.add_quadratic(var(t), y_index[j], -lam)
 
     _budget_block(q, n_in, K, gamma, budget_start, n_budget_bits)
     return q
@@ -513,8 +664,23 @@ def build_min_input_set(
 # --------------------------------------------------------------------------
 # native (non-QUBO) objective -- the ground-truth reference
 # --------------------------------------------------------------------------
-def native_max_coverage_objective(A, w, c, x, K, *, alpha=1.0, beta=0.0
-                                  ) -> tuple[float, bool]:
+def coverage_mask(A, x, arms=None) -> np.ndarray:
+    """The one definition of coverage used by every solver and the QUBO check."""
+    A = np.asarray(A)
+    x = np.asarray(x, dtype=bool)
+    if arms is None:
+        if not x.any():
+            return np.zeros(A.shape[1], bool)
+        return A[x].sum(axis=0) > 0
+    y = np.zeros(A.shape[1], bool)
+    for j, mem in arms:
+        if not y[j] and all(x[i] for i in mem):
+            y[j] = True
+    return y
+
+
+def native_max_coverage_objective(A, w, c, x, K, *, alpha=1.0, beta=0.0,
+                                  arms=None) -> tuple[float, bool]:
     """Objective and feasibility of ``x`` under the *original* formulation.
 
     Everything the QUBO does is checked against this function, never the other
@@ -523,7 +689,7 @@ def native_max_coverage_objective(A, w, c, x, K, *, alpha=1.0, beta=0.0
     """
     A = np.asarray(A); w = np.asarray(w, float); c = np.asarray(c, float)
     x = np.asarray(x, dtype=bool)
-    covered = (A[x].sum(axis=0) > 0) if x.any() else np.zeros(A.shape[1], bool)
+    covered = coverage_mask(A, x, arms)
     obj = -alpha * float(w[covered].sum()) + beta * float(c[x].sum())
     return obj, bool(x.sum() <= K)
 

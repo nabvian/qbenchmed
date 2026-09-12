@@ -52,9 +52,17 @@ differences in the last digits and identical solver decisions.
 
 ## Two things to know before reading the results
 
-**The instance is a synthetic stand-in.** The 66×88 pathology knowledge export
-described in the specification was not available. `heme_shaped` generates an
-instance matched to its declared shape. It has no clinical content.
+**The flagship instance is the real export.** It is loaded from
+`benchmarks/heme/QBMED-HEME-001/` — the rule engine's outcome-by-input trigger
+and wiring matrix (snapshot 2026-08-29, bundle 1.2.0), recording which
+laboratory inputs each rule reads. It contains no patient data. Synthetic
+instances still appear in the structural survey and the head-to-head, where the
+point is to vary structure deliberately; those are labelled by regime and are
+never the flagship.
+
+Nothing in these results is a clinical statement. A covering panel optimizes a
+coverage objective over a rule graph; **it does not follow that any test is
+clinically unnecessary** or that a smaller panel is safe.
 
 **One experiment was discarded.** `results/noise_sweep_INVALID_phasebug.csv` is
 the first noise sweep, invalidated by a branch-cut bug in the noisy cost phase.

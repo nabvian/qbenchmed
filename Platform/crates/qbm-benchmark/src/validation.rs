@@ -2,15 +2,28 @@
 
 use std::collections::BTreeSet;
 
-use crate::{BENCHMARK_PROFILE_SCHEMA_VERSION, BenchmarkError, BenchmarkProfile};
+use crate::coverage::CoverageModel;
+use crate::{
+    BENCHMARK_PROFILE_SCHEMA_V1, BenchmarkError, BenchmarkProfile, RelationshipKind,
+    SUPPORTED_PROFILE_SCHEMA_VERSIONS,
+};
 
 #[allow(clippy::too_many_lines)] // Keeping schema invariants together makes the validation contract auditable.
 pub(crate) fn validate_profile(profile: &BenchmarkProfile) -> Result<(), BenchmarkError> {
-    if profile.schema_version != BENCHMARK_PROFILE_SCHEMA_VERSION {
+    if !SUPPORTED_PROFILE_SCHEMA_VERSIONS.contains(&profile.schema_version.as_str()) {
         return invalid(format!(
-            "unsupported schema_version {:?}; expected {BENCHMARK_PROFILE_SCHEMA_VERSION}",
-            profile.schema_version
+            "unsupported schema_version {:?}; expected one of {}",
+            profile.schema_version,
+            SUPPORTED_PROFILE_SCHEMA_VERSIONS.join(", ")
         ));
+    }
+    // A v1 document is welcome, but it has to mean v1. Silently upgrading one
+    // that carries typed edges would make the declared version a lie, and the
+    // version is what a reader uses to know which coverage rule applies.
+    if profile.schema_version == BENCHMARK_PROFILE_SCHEMA_V1 && profile.uses_typed_features() {
+        return invalid(
+            "this document declares schema v1 but uses relationship kinds, path groups, context inputs, or unconditional outcomes; declare v2 instead",
+        );
     }
     validate_id("profile_id", &profile.profile_id)?;
     validate_text("title", &profile.title)?;
@@ -87,7 +100,38 @@ pub(crate) fn validate_profile(profile: &BenchmarkProfile) -> Result<(), Benchma
                 relationship.outcome_id
             ));
         }
+        if !relationship.path.is_empty() {
+            validate_id("relationship.path", &relationship.path)?;
+        }
+        match (&relationship.context_input_id, relationship.kind) {
+            (Some(context), RelationshipKind::Contextual) => {
+                if !input_ids.contains(context.as_str()) {
+                    return invalid(format!(
+                        "relationship context_input_id references unknown input {context:?}"
+                    ));
+                }
+                if context == &relationship.input_id {
+                    return invalid(format!(
+                        "relationship for input {:?} cannot be its own context",
+                        relationship.input_id
+                    ));
+                }
+            }
+            (Some(_), other) => {
+                return invalid(format!(
+                    "context_input_id is only meaningful on a contextual relationship, not {}",
+                    other.as_str()
+                ));
+            }
+            (None, _) => {}
+        }
     }
+
+    validate_constraint_ids(
+        "unconditional_outcomes",
+        &profile.unconditional_outcomes,
+        &outcome_ids,
+    )?;
 
     validate_constraint_ids(
         "required_inputs",
@@ -151,21 +195,34 @@ pub(crate) fn validate_profile(profile: &BenchmarkProfile) -> Result<(), Benchma
         }
     }
 
-    let available_cover: BTreeSet<_> = profile
-        .relationships
-        .iter()
-        .filter(|relationship| !excluded.contains(relationship.input_id.as_str()))
-        .map(|relationship| relationship.outcome_id.as_str())
-        .collect();
-    if let Some(unreachable) = profile
-        .constraints
-        .required_outcomes
-        .iter()
-        .find(|outcome| !available_cover.contains(outcome.as_str()))
-    {
-        return invalid(format!(
-            "required outcome {unreachable:?} is unreachable using non-excluded inputs"
-        ));
+    // Reachability has to be decided by the typed rules, not by "some
+    // relationship mentions it": an outcome whose only arm needs two inputs
+    // together is unreachable the moment either one is excluded, even though a
+    // raw incidence lookup would happily find a row for it.
+    if !profile.constraints.required_outcomes.is_empty() {
+        let model = CoverageModel::compile(profile)?;
+        let mut allowed = crate::coverage::InputSet::empty(profile.inputs.len());
+        for (index, input) in profile.inputs.iter().enumerate() {
+            if !excluded.contains(input.id.as_str()) {
+                allowed.insert(index);
+            }
+        }
+        for required in &profile.constraints.required_outcomes {
+            let position = profile
+                .outcomes
+                .iter()
+                .position(|outcome| &outcome.id == required)
+                .ok_or_else(|| {
+                    BenchmarkError::InvalidProfile(format!(
+                        "required outcome {required:?} is unknown"
+                    ))
+                })?;
+            if !model.is_reachable_within(position, &allowed) {
+                return invalid(format!(
+                    "required outcome {required:?} is unreachable using non-excluded inputs"
+                ));
+            }
+        }
     }
 
     validate_text("provenance.generated_by", &profile.provenance.generated_by)?;

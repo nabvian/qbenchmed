@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::coverage::CoverageModel;
+use crate::ilp::{IlpLimits, IlpProblem, solve_max_coverage, solve_minimum_panel};
 use crate::{BenchmarkError, BenchmarkProfile, OPTIMIZATION_RESULT_SCHEMA_VERSION};
 
 /// Classical solver used to produce an optimization result.
@@ -12,13 +14,48 @@ use crate::{BenchmarkError, BenchmarkProfile, OPTIMIZATION_RESULT_SCHEMA_VERSION
 #[serde(rename_all = "snake_case")]
 pub enum SolverKind {
     /// Exhaustive enumeration with a proof of optimality under configured bounds.
+    ///
+    /// Ground truth, but only up to about twenty inputs. Prefer [`SolverKind::Ilp`],
+    /// which proves the same thing far beyond that ceiling.
     Exact,
+    /// Certified branch-and-bound over the native integer program.
+    ///
+    /// Proves optimality at sizes exhaustive search cannot reach, and says so
+    /// honestly when its node budget runs out instead.
+    Ilp,
     /// Deterministic marginal weighted-coverage-per-cost baseline.
     Greedy,
     /// Seeded deterministic simulated-annealing baseline.
     SimulatedAnnealing,
     /// Seeded deterministic one-flip tabu-search baseline.
     TabuSearch,
+}
+
+impl SolverKind {
+    /// Whether this solver can return a proof of optimality.
+    #[must_use]
+    pub const fn can_prove_optimality(self) -> bool {
+        matches!(self, Self::Exact | Self::Ilp)
+    }
+}
+
+/// Profile plus its compiled coverage model.
+///
+/// Scoring a panel means evaluating every outcome's rule, and the solvers do
+/// that millions of times, so the rules are compiled into index space once and
+/// reused rather than rebuilt from identifier strings on every call.
+pub(crate) struct ScoreContext<'a> {
+    pub profile: &'a BenchmarkProfile,
+    pub model: CoverageModel,
+}
+
+impl<'a> ScoreContext<'a> {
+    pub(crate) fn new(profile: &'a BenchmarkProfile) -> Result<Self, BenchmarkError> {
+        Ok(Self {
+            model: CoverageModel::compile(profile)?,
+            profile,
+        })
+    }
 }
 
 /// Per-run optimization controls.
@@ -58,6 +95,9 @@ pub struct SolverConfig {
     pub exact_max_inputs: usize,
     /// Largest number of exact bit-mask states evaluated.
     pub max_exact_states: u64,
+    /// Largest number of branch-and-bound nodes explored before the certified
+    /// solver gives up its proof and says so.
+    pub max_ilp_nodes: u64,
     /// Default iteration count used by coverage/minimum-panel helpers.
     pub default_heuristic_iterations: usize,
     /// Hard iteration ceiling for annealing and tabu search.
@@ -73,6 +113,7 @@ impl Default for SolverConfig {
         Self {
             exact_max_inputs: 20,
             max_exact_states: 1 << 20,
+            max_ilp_nodes: 20_000_000,
             default_heuristic_iterations: 10_000,
             max_heuristic_iterations: 1_000_000,
             tabu_tenure: 11,
@@ -172,7 +213,8 @@ pub fn evaluate_selection(
             "selected_inputs contains unknown identity {unknown:?}"
         )));
     }
-    Ok(score_unchecked(profile, &selected))
+    let ctx = ScoreContext::new(profile)?;
+    Ok(score_unchecked(&ctx, &selected))
 }
 
 /// Solve weighted maximum coverage under profile and request constraints.
@@ -183,12 +225,66 @@ pub fn solve(
 ) -> Result<OptimizationResult, BenchmarkError> {
     profile.validate()?;
     validate_request(profile, request, config)?;
+    let ctx = ScoreContext::new(profile)?;
     match request.solver {
-        SolverKind::Exact => exact_solve(profile, request, config, ExactGoal::MaxCoverage),
-        SolverKind::Greedy => greedy_solve(profile, request),
-        SolverKind::SimulatedAnnealing => annealing_solve(profile, request),
-        SolverKind::TabuSearch => tabu_solve(profile, request, config.tabu_tenure),
+        SolverKind::Exact => exact_solve(&ctx, request, config, ExactGoal::MaxCoverage),
+        SolverKind::Ilp => ilp_solve(&ctx, request, config),
+        SolverKind::Greedy => greedy_solve(&ctx, request),
+        SolverKind::SimulatedAnnealing => annealing_solve(&ctx, request),
+        SolverKind::TabuSearch => tabu_solve(&ctx, request, config.tabu_tenure),
     }
+}
+
+/// Certified branch-and-bound over the native integer program.
+fn ilp_solve(
+    ctx: &ScoreContext<'_>,
+    request: &OptimizationRequest,
+    config: &SolverConfig,
+) -> Result<OptimizationResult, BenchmarkError> {
+    let limits = IlpLimits {
+        max_nodes: config.max_ilp_nodes,
+    };
+    let solution = if let Some(floor) = request.coverage_floor {
+        solve_minimum_panel(&ctx.model, ctx.profile, request, floor, limits)?
+    } else {
+        let problem = IlpProblem::new(&ctx.model, ctx.profile, request)?;
+        // A greedy answer costs one pass and gives the bound something to
+        // prune against from the first node.
+        let seed = greedy_candidate(ctx, request)
+            .ok()
+            .and_then(|(score, _)| ctx.model.selection(&score.selected_inputs).ok());
+        solve_max_coverage(&problem, limits, seed.as_ref())?
+    };
+
+    let ids: Vec<String> = solution
+        .selected
+        .indices()
+        .into_iter()
+        .map(|index| ctx.profile.inputs[index].id.clone())
+        .collect();
+    let score = score_set(ctx, ids, &solution.selected);
+    let mut limitations = vec![
+        "branch-and-bound over the native integer program with an outcome-reachability bound; no LP relaxation is solved".to_owned(),
+        "proof applies only to the approved profile relationships, costs, weights and declared constraints".to_owned(),
+    ];
+    if !solution.proven_optimal {
+        limitations.push(format!(
+            "the node budget of {} was reached before the search closed; the best selection found covers {:.6} weight against a surviving upper bound of {:.6}",
+            config.max_ilp_nodes, solution.covered_weight, solution.upper_bound
+        ));
+    }
+    Ok(OptimizationResult {
+        schema_version: OPTIMIZATION_RESULT_SCHEMA_VERSION.to_owned(),
+        profile_id: ctx.profile.profile_id.clone(),
+        solver: SolverKind::Ilp,
+        optimality_proven: solution.proven_optimal,
+        deterministic_seed: None,
+        iterations_completed: 0,
+        evaluated_candidates: solution.nodes_explored,
+        request: request.clone(),
+        score,
+        limitations,
+    })
 }
 
 /// Compute coverage at strictly increasing, positive panel-size ceilings.
@@ -240,7 +336,7 @@ pub fn minimum_panel(
 ) -> Result<OptimizationResult, BenchmarkError> {
     profile.validate()?;
     validate_floor(coverage_floor)?;
-    if solver == SolverKind::Exact {
+    if solver.can_prove_optimality() {
         let request = OptimizationRequest {
             solver,
             max_inputs: None,
@@ -249,7 +345,11 @@ pub fn minimum_panel(
             iterations: 0,
         };
         validate_request(profile, &request, config)?;
-        return exact_solve(profile, &request, config, ExactGoal::MinimumPanel);
+        let ctx = ScoreContext::new(profile)?;
+        return match solver {
+            SolverKind::Exact => exact_solve(&ctx, &request, config, ExactGoal::MinimumPanel),
+            _ => ilp_solve(&ctx, &request, config),
+        };
     }
 
     let maximum = effective_max_inputs(profile, None);
@@ -277,7 +377,7 @@ fn helper_iterations(solver: SolverKind, config: &SolverConfig) -> usize {
         SolverKind::SimulatedAnnealing | SolverKind::TabuSearch => {
             config.default_heuristic_iterations
         }
-        SolverKind::Exact | SolverKind::Greedy => 0,
+        SolverKind::Exact | SolverKind::Ilp | SolverKind::Greedy => 0,
     }
 }
 
@@ -332,11 +432,12 @@ enum ExactGoal {
 }
 
 fn exact_solve(
-    profile: &BenchmarkProfile,
+    ctx: &ScoreContext<'_>,
     request: &OptimizationRequest,
     config: &SolverConfig,
     goal: ExactGoal,
 ) -> Result<OptimizationResult, BenchmarkError> {
+    let profile = ctx.profile;
     let count = profile.inputs.len();
     let required_states = u32::try_from(count)
         .ok()
@@ -360,7 +461,7 @@ fn exact_solve(
             .filter(|(index, _)| mask & (1_u64 << index) != 0)
             .map(|(_, input)| input.id.clone())
             .collect();
-        let score = score_unchecked(profile, &selected);
+        let score = score_unchecked(ctx, &selected);
         if !request_feasible(profile, request, &score) {
             continue;
         }
@@ -393,10 +494,11 @@ fn exact_solve(
 }
 
 fn greedy_solve(
-    profile: &BenchmarkProfile,
+    ctx: &ScoreContext<'_>,
     request: &OptimizationRequest,
 ) -> Result<OptimizationResult, BenchmarkError> {
-    let (score, evaluated) = greedy_candidate(profile, request)?;
+    let profile = ctx.profile;
+    let (score, evaluated) = greedy_candidate(ctx, request)?;
     Ok(OptimizationResult {
         schema_version: OPTIMIZATION_RESULT_SCHEMA_VERSION.to_owned(),
         profile_id: profile.profile_id.clone(),
@@ -414,9 +516,10 @@ fn greedy_solve(
 }
 
 fn greedy_candidate(
-    profile: &BenchmarkProfile,
+    ctx: &ScoreContext<'_>,
     request: &OptimizationRequest,
 ) -> Result<(SelectionScore, u64), BenchmarkError> {
+    let profile = ctx.profile;
     let excluded: BTreeSet<_> = profile
         .constraints
         .excluded_inputs
@@ -428,7 +531,7 @@ fn greedy_candidate(
     let mut evaluated = 0_u64;
 
     loop {
-        let current = score_unchecked(profile, &selected);
+        let current = score_unchecked(ctx, &selected);
         let must_add = selected.len() < profile.constraints.min_selected;
         let needs_floor = request
             .coverage_floor
@@ -450,7 +553,7 @@ fn greedy_candidate(
             let mut candidate_ids = selected.clone();
             candidate_ids.push(input.id.clone());
             candidate_ids.sort();
-            let candidate = score_unchecked(profile, &candidate_ids);
+            let candidate = score_unchecked(ctx, &candidate_ids);
             evaluated += 1;
             if violates_budget(profile, &candidate) {
                 continue;
@@ -479,7 +582,7 @@ fn greedy_candidate(
         selected = candidate.selected_inputs;
     }
 
-    let score = score_unchecked(profile, &selected);
+    let score = score_unchecked(ctx, &selected);
     if !request_feasible(profile, request, &score) {
         return Err(BenchmarkError::Infeasible(
             "the greedy baseline did not find a feasible selection".to_owned(),
@@ -490,10 +593,11 @@ fn greedy_candidate(
 
 #[allow(clippy::cast_precision_loss)] // Iteration progress is intentionally normalized as f64.
 fn annealing_solve(
-    profile: &BenchmarkProfile,
+    ctx: &ScoreContext<'_>,
     request: &OptimizationRequest,
 ) -> Result<OptimizationResult, BenchmarkError> {
-    let (initial, mut evaluated) = greedy_candidate(profile, request)?;
+    let profile = ctx.profile;
+    let (initial, mut evaluated) = greedy_candidate(ctx, request)?;
     let mut current = initial.clone();
     let mut best = initial;
     let mutable = mutable_input_ids(profile);
@@ -506,7 +610,7 @@ fn annealing_solve(
         }
         let input = &mutable[rng.index(mutable.len())];
         let candidate_ids = toggled(&current.selected_inputs, input);
-        let candidate = score_unchecked(profile, &candidate_ids);
+        let candidate = score_unchecked(ctx, &candidate_ids);
         evaluated += 1;
         if !request_feasible(profile, request, &candidate) {
             continue;
@@ -545,11 +649,12 @@ fn annealing_solve(
 }
 
 fn tabu_solve(
-    profile: &BenchmarkProfile,
+    ctx: &ScoreContext<'_>,
     request: &OptimizationRequest,
     tabu_tenure: usize,
 ) -> Result<OptimizationResult, BenchmarkError> {
-    let (initial, mut evaluated) = greedy_candidate(profile, request)?;
+    let profile = ctx.profile;
+    let (initial, mut evaluated) = greedy_candidate(ctx, request)?;
     let mut current = initial.clone();
     let mut best = initial;
     let mutable = mutable_input_ids(profile);
@@ -559,7 +664,7 @@ fn tabu_solve(
         let mut next: Option<(SelectionScore, &str)> = None;
         for input in &mutable {
             let candidate_ids = toggled(&current.selected_inputs, input);
-            let candidate = score_unchecked(profile, &candidate_ids);
+            let candidate = score_unchecked(ctx, &candidate_ids);
             evaluated += 1;
             if !request_feasible(profile, request, &candidate) {
                 continue;
@@ -608,44 +713,44 @@ fn tabu_solve(
     })
 }
 
-fn score_unchecked(profile: &BenchmarkProfile, selected: &[String]) -> SelectionScore {
-    let selected_set: BTreeSet<_> = selected.iter().map(String::as_str).collect();
-    let covered_set: BTreeSet<_> = profile
-        .relationships
-        .iter()
-        .filter(|relationship| selected_set.contains(relationship.input_id.as_str()))
-        .map(|relationship| relationship.outcome_id.as_str())
-        .collect();
-    let covered_outcomes: Vec<_> = profile
-        .outcomes
-        .iter()
-        .filter(|outcome| covered_set.contains(outcome.id.as_str()))
-        .map(|outcome| outcome.id.clone())
-        .collect();
-    let uncovered_outcomes: Vec<_> = profile
-        .outcomes
-        .iter()
-        .filter(|outcome| !covered_set.contains(outcome.id.as_str()))
-        .map(|outcome| outcome.id.clone())
-        .collect();
-    let total_cost = profile
-        .inputs
-        .iter()
-        .filter(|input| selected_set.contains(input.id.as_str()))
-        .map(|input| input.cost)
-        .sum();
-    let covered_weight = profile
-        .outcomes
-        .iter()
-        .filter(|outcome| covered_set.contains(outcome.id.as_str()))
-        .map(|outcome| outcome.weight)
-        .sum();
+/// Score one panel under the profile's typed coverage semantics.
+///
+/// Identifiers are assumed known; callers that accept untrusted input go
+/// through [`evaluate_selection`], which checks them first.
+fn score_unchecked(ctx: &ScoreContext<'_>, selected: &[String]) -> SelectionScore {
+    let panel = ctx
+        .model
+        .selection(selected)
+        .unwrap_or_else(|_| crate::coverage::InputSet::empty(ctx.model.input_count));
+    score_set(ctx, selected.to_vec(), &panel)
+}
+
+/// Score a panel already translated into index space.
+fn score_set(
+    ctx: &ScoreContext<'_>,
+    selected: Vec<String>,
+    panel: &crate::coverage::InputSet,
+) -> SelectionScore {
+    let profile = ctx.profile;
+    let mask = ctx.model.covered_mask(panel);
+    let mut covered_outcomes = Vec::new();
+    let mut uncovered_outcomes = Vec::new();
+    let mut covered_weight = 0.0;
+    for (index, outcome) in profile.outcomes.iter().enumerate() {
+        if mask[index] {
+            covered_weight += outcome.weight;
+            covered_outcomes.push(outcome.id.clone());
+        } else {
+            uncovered_outcomes.push(outcome.id.clone());
+        }
+    }
+    let total_cost = ctx.model.total_cost(panel);
     let total_outcome_weight: f64 = profile.outcomes.iter().map(|outcome| outcome.weight).sum();
     let mut score = SelectionScore {
-        selected_inputs: selected.to_vec(),
+        selected_count: selected.len(),
+        selected_inputs: selected,
         covered_outcomes,
         uncovered_outcomes,
-        selected_count: selected.len(),
         total_cost,
         covered_weight,
         total_outcome_weight,

@@ -41,10 +41,11 @@ fn explicit_profile(artifact_id: &str) -> BenchmarkProfile {
             weight: 3.0,
             tags: vec!["therapy".to_owned()],
         }],
-        relationships: vec![IncidenceRelationship {
-            input_id: "EGFR".to_owned(),
-            outcome_id: "osimertinib".to_owned(),
-        }],
+        relationships: vec![IncidenceRelationship::supporting(
+            "EGFR".to_owned(),
+            "osimertinib".to_owned(),
+        )],
+        unconditional_outcomes: Vec::new(),
         constraints: BenchmarkConstraints {
             min_selected: 0,
             max_selected: Some(1),
@@ -127,14 +128,8 @@ rules:
     assert_eq!(
         candidate.profile.relationships,
         vec![
-            IncidenceRelationship {
-                input_id: "ALK".to_owned(),
-                outcome_id: "alk_inhibitor".to_owned(),
-            },
-            IncidenceRelationship {
-                input_id: "EGFR".to_owned(),
-                outcome_id: "osimertinib".to_owned(),
-            },
+            IncidenceRelationship::supporting("ALK".to_owned(), "alk_inhibitor".to_owned()),
+            IncidenceRelationship::supporting("EGFR".to_owned(), "osimertinib".to_owned()),
         ]
     );
     assert!(candidate.assumptions.iter().any(|assumption| {

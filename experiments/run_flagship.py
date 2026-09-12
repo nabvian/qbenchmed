@@ -1,29 +1,39 @@
 """Flagship 66x88 benchmark: full coverage curve with certified optima.
 
-Sweeps the input budget K from 1 to 66. At each K, exact ILP (HiGHS) gives a
-certified optimum and greedy gives the submodular baseline. The point of the
-experiment is to establish whether the flagship instance is hard enough to be
-a candidate for any speedup -- so ILP runtime is recorded per point.
+Sweeps the input budget K from 1 to 66 on the real Q-BenchMed-Heme profile.
+At each K, exact ILP (HiGHS) gives a certified optimum and greedy gives the
+practical baseline.  The question the experiment answers is whether the
+flagship instance is hard enough for the choice of optimizer to matter at all:
+if greedy reaches the certified optimum at every budget, no method can be
+distinguished on this instance and the benchmark's discriminating power has to
+come from elsewhere.
 
-The instance is a SYNTHETIC STAND-IN for the pathology knowledge export
-described in the specification; see reproducibility/benchmark.yaml.
+The instance is CONJUNCTIVE -- some outcomes fire only when several inputs are
+present together -- so greedy's 1-1/e submodular guarantee does not apply here.
+Whether it nevertheless reaches the optimum is the measurement.
 
-Writes: results/flagship_coverage_curve.csv, results/flagship_env.json
+Provenance: the profile is the real pathology export described in
+benchmarks/heme/QBMED-HEME-001, derived from an implementation audit of a
+running rule engine.  No clinical claim follows from any result below: a
+smaller covering panel does not mean a test is clinically unnecessary.
+
+Writes: results/flagship_records.jsonl   (canonical, schema-versioned)
+        results/flagship_coverage_curve.csv  (derived view for the report)
+        results/flagship_env.json
 """
 from __future__ import annotations
 
 import json
-import platform
 import sys
 import time
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from qbm import classical as qcl
 from qbm import instances as ins
+from qbm import results as rs
+from qbm import runner as rn
 
 RES = Path(__file__).resolve().parents[1] / "results"
 SEED = 42
@@ -34,48 +44,81 @@ def main() -> None:
     RES.mkdir(exist_ok=True)
 
     inst = ins.heme_benchmark(seed=SEED)
-    A, w, c = inst.A, inst.w, inst.c
-    n_in, n_out = A.shape
+    n_in = inst.n_inputs
 
+    allrecs = rs.ResultSet()
     rows = []
     for K in range(1, n_in + 1):
-        r_ilp = qcl.ilp(A, w, c, K)
-        r_greedy = qcl.greedy(A, w, c, K)
+        spec = rn.RunSpec(benchmark_id="QBMED-HEME-001", input_budget=K,
+                          benchmark_version="1.0.0",
+                          notes="flagship coverage curve")
+        out = rn.run_comparison(inst, spec, [{"algorithm": "ilp"},
+                                             {"algorithm": "greedy"}])
+        by = {r.algorithm: r for r in out}
+        ilp, greedy = by["ilp"], by["greedy"]
+        for r in out:
+            allrecs.append(r)
+
+        # The derived view is computed from the records rather than gathered
+        # alongside them, so the CSV cannot drift from the canonical file.
         rows.append({
             "K": K,
-            "ilp_cov": r_ilp.coverage_fraction,
-            "greedy_cov": r_greedy.coverage_fraction,
-            "ilp_obj": r_ilp.objective_value,
-            "greedy_obj": r_greedy.objective_value,
-            "certified": bool(r_ilp.extra.get('certified_optimal', False)),
-            "ilp_ms": r_ilp.runtime_ms,
-            "n_sel": len(r_ilp.selected_inputs),
-            # Greedy optimality is judged against the CERTIFIED optimum, not
-            # against a heuristic reference.
-            "greedy_is_optimal": bool(
-                abs(r_greedy.objective_value - r_ilp.objective_value) < 1e-9),
-            "rel_gap": (0.0 if abs(r_ilp.objective_value) < 1e-12 else
-                        abs(r_greedy.objective_value - r_ilp.objective_value) / abs(r_ilp.objective_value)),
+            "ilp_cov": ilp.coverage_fraction,
+            "greedy_cov": greedy.coverage_fraction,
+            "ilp_cov_achievable": ilp.coverage_fraction_of_achievable,
+            "ilp_obj": ilp.objective_value,
+            "greedy_obj": greedy.objective_value,
+            "certified": ilp.certified_optimal,
+            "ilp_ms": ilp.runtime_ms,
+            "greedy_ms": greedy.runtime_ms,
+            "n_sel": ilp.n_selected,
+            # Optimality is judged against the CERTIFIED optimum, and the gap
+            # comes from the record's own reference rather than being
+            # recomputed here.
+            "greedy_is_optimal": bool(abs(greedy.optimality_gap_abs) < 1e-9),
+            "rel_gap": greedy.optimality_gap_rel,
+            "greedy_bound_applies": bool(
+                greedy.extra.get("submodular_bound_applies", False)),
+            # Greedy can exhaust its improving moves before exhausting its
+            # budget: on a conjunctive instance the remaining outcomes need two
+            # or more inputs added together, so no single input shows a
+            # marginal gain and selection halts.  Extra budget then buys
+            # nothing, which is why the failures cluster at LARGE K.
+            "greedy_stalled": bool(
+                greedy.extra.get("stalled_with_budget_remaining", False)),
+            "greedy_n_selected": greedy.n_selected,
         })
 
+    allrecs.to_jsonl(RES / "flagship_records.jsonl")
     df = pd.DataFrame(rows)
     df.to_csv(RES / "flagship_coverage_curve.csv", index=False)
 
+    full = df[df.ilp_cov_achievable >= 1 - 1e-9]
     env = {
-        "python": platform.python_version(),
-        "platform": platform.platform(),
-        "numpy": np.__version__,
-        "n_inputs": int(n_in),
-        "n_outcomes": int(n_out),
-        "generator": "heme_shaped",
+        "environment": rs.environment_fingerprint(),
+        "benchmark_id": "QBMED-HEME-001",
+        "n_inputs": inst.n_inputs,
+        "n_outcomes": inst.n_outcomes,
+        "n_arms": inst.n_arms,
+        "is_conjunctive": bool(inst.is_conjunctive),
+        "instance_checksum": inst.checksum(),
         "seed": SEED,
-        "provenance": "synthetic stand-in for the 66x88 pathology export",
+        "provenance": "real pathology export (implementation audit of a rule engine)",
+        "schema_version": rs.SCHEMA_VERSION,
         "total_runtime_s": round(time.perf_counter() - t_start, 1),
     }
     (RES / "flagship_env.json").write_text(json.dumps(env, indent=2))
-    print(f"{len(df)} budgets -> {RES / 'flagship_coverage_curve.csv'}")
+    print(f"{len(df)} budgets, {len(allrecs)} records -> {RES}")
+    stalled = df[df.greedy_stalled]
     print(f"all certified: {bool(df.certified.all())}; "
-          f"min K for full coverage: {int(df[df.ilp_cov >= 1 - 1e-9].K.min())}")
+          f"greedy optimal at {int(df.greedy_is_optimal.sum())}/{len(df)} budgets; "
+          f"min K for full achievable coverage: "
+          f"{int(full.K.min()) if len(full) else 'not reached'}")
+    if len(stalled):
+        print(f"greedy stalls from K={int(stalled.K.min())} at "
+              f"{int(stalled.greedy_n_selected.iloc[0])} inputs / "
+              f"{stalled.greedy_cov.max():.4f} coverage; "
+              f"ILP reaches {df.ilp_cov.max():.4f}")
 
 
 if __name__ == "__main__":

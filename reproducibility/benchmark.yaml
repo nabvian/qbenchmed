@@ -2,19 +2,25 @@ benchmark_id: QBMED-HEME-001
 schema_version: "1.0"
 domain: hematology
 
-# The flagship instance is a SYNTHETIC STAND-IN for the 66x88 pathology
-# knowledge export described in the specification. That export is not present
-# in this workspace, so the instance is generated with a structure matched to
-# its declared shape. It carries no clinical content and no patient data. When
-# the real export becomes available it replaces this block; nothing downstream
-# of `instance:` needs to change.
+# The flagship instance is the REAL 66x88 pathology export, loaded from
+# benchmarks/heme/QBMED-HEME-001/. It is the outcome-by-input trigger and
+# wiring matrix of the rule engine: which laboratory inputs each rule reads.
+# It carries no patient data. Every relationship in relationships.csv records
+# its own source row, so any edge in the matrix is traceable to the export.
+#
+# The profile is CONJUNCTIVE: an outcome may require several inputs jointly,
+# represented as arms rather than as independent edges. That is a property of
+# the rule engine and it is what makes the instance non-submodular.
 instance:
   n_inputs: 66
   n_outcomes: 88
-  generator: heme_shaped
+  source: benchmarks/heme/QBMED-HEME-001/
+  export_snapshot: "2026-08-29"
+  export_bundle_version: "1.2.0"
   seed: 42
-  provenance: synthetic_stand_in
-  real_export_present: false
+  provenance: real_export
+  real_export_present: true
+  conjunctive: true
 
 optimization:
   objective: maximum_outcome_coverage

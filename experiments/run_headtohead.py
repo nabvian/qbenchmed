@@ -1,148 +1,134 @@
-"""Head-to-head: QAOA vs classical baselines on identical QUBOs (spec1 s16.4, s50).
+"""Head-to-head: every solver on the identical QUBO object.
 
-Fairness rules enforced here, because they are what makes the comparison mean
-anything:
+This is the experiment the whole framework exists to make fair (spec section
+50).  Exhaustive enumeration, simulated annealing, tabu and QAOA at three
+depths all minimise *the same* Qubo instance -- not a re-derivation of it --
+so a difference in objective is a difference in optimizer, not in problem.
 
-* Every algorithm receives the *same* QUBO object -- same instance, same
-  encoding, same penalty coefficients.  Nothing is re-derived per solver.
-* Ground truth comes from exhaustive enumeration of that same QUBO, so the
-  optimality gap is measured against the true minimum of the problem actually
-  being solved, not of a related one.
-* Stochastic methods get multiple independent seeds; a single run would conflate
-  algorithm quality with luck.
-* Wall-clock time is recorded but never used to rank quantum against classical:
-  a state-vector simulation of QAOA on a CPU is not a QPU execution, and spec1
-  s50 forbids conflating the two.  Runtime is reported for the classical
-  methods against each other, and for QAOA only as simulation cost.
+Greedy is included but tagged formulation="native": it operates on the coverage
+structure, not on a QUBO.  It is placed on the QUBO axis by holding its
+selection fixed and completing the auxiliary variables optimally, which changes
+nothing about what greedy does and makes its answer commensurable.  It is never
+averaged with the QUBO solvers.
 
-Run: python experiments/run_headtohead.py
+Regime and size come from the discriminating-power survey: the cell chosen is
+the one where greedy most often fails to reach the certified optimum, among the
+sizes a state-vector simulator can hold.  Running the comparison where every
+method ties would measure nothing.
+
+Wall-clock across the quantum/classical boundary is NOT comparable -- a
+state-vector simulation of QAOA is not a QPU -- and every quantum record is
+flagged accordingly.  Runtimes are reported within a family only.
+
+Writes: results/headtohead_records.jsonl  (canonical)
+        results/headtohead.csv            (derived view for the report)
+        results/headtohead_env.json
 """
-
 from __future__ import annotations
 
 import itertools
 import json
-import platform
 import sys
 import time
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from qbm import instances as ins
+from qbm import results as rs
+from qbm import runner as rn
 
-from qbm import classical as qc          # noqa: E402
-from qbm import instances as ins         # noqa: E402
-from qbm import qaoa as qa               # noqa: E402
-from qbm import qubo as qb               # noqa: E402
-
+REGIME = "degree_capped"     # pairwise encoding is exact only at outcome degree <= 2
 SIZES = (8, 10, 12, 14, 16)
 DEPTHS = (1, 2, 3)
-SEEDS = tuple(range(10))
-REGIME = "degree_capped"          # the only regime that both discriminates and fits
-K_FRAC = 0.4
-ENCODING = "pairwise"             # exact for outcome degree <= 2
+SEEDS = (0, 1, 2, 3, 4)
+K_FRAC = 0.30
+ENCODING = "pairwise"
 SHOTS = 4096
 N_RESTARTS = 3
 OUT = Path(__file__).resolve().parents[1] / "results"
 
 
-def build(n_in: int, seed: int):
-    n_out = int(round(n_in * 88 / 66))
-    K = max(2, round(K_FRAC * n_in))
-    inst = ins.generate(REGIME, n_in, n_out, seed=seed)
-    q = qb.build_max_coverage(inst.A, inst.w, inst.c, K=K, encoding=ENCODING)
-    return inst, q, K
-
-
 def main() -> None:
-    rows: list[dict] = []
     t_start = time.perf_counter()
+    OUT.mkdir(parents=True, exist_ok=True)
+
+    allrecs = rs.ResultSet()
+    rows: list[dict] = []
 
     for n_in, seed in itertools.product(SIZES, SEEDS):
-        inst, q, K = build(n_in, seed)
-        # ground truth on the identical QUBO
-        Z, E = q.all_energies()
-        opt = float(E.min())
-        n_opt = int(np.sum(E <= opt + 1e-9))
+        n_out = int(round(n_in * 88 / 66))
+        K = max(2, round(K_FRAC * n_in))
+        inst = ins.generate(REGIME, n_in, n_out, seed=seed)
+        spec = rn.RunSpec(benchmark_id="QBM-H2H", input_budget=K,
+                          encoding=ENCODING, notes="head-to-head on one QUBO")
+
+        # qubo_exhaustive runs first (the runner orders exact algorithms first),
+        # so its ground-state energy becomes the QUBO-axis reference every other
+        # record is scored against, QAOA included.
+        plan = [{"algorithm": "qubo_exhaustive"},
+                {"algorithm": "greedy"},
+                {"algorithm": "simulated_annealing", "seed": seed},
+                {"algorithm": "tabu", "seed": seed}]
+        plan += [{"algorithm": "qaoa", "depth": p, "shots": SHOTS, "seed": seed,
+                  "n_restarts": N_RESTARTS} for p in DEPTHS]
+        out = rn.run_comparison(inst, spec, plan)
+        for r in out:
+            allrecs.append(r)
+
+        gt = next(r for r in out if r.algorithm == "qubo_exhaustive")
         base = dict(regime=REGIME, n_inputs=n_in, n_outcomes=inst.n_outcomes,
-                    K=K, encoding=ENCODING, qubits=q.n_vars, instance_seed=seed,
-                    optimum=opt, n_optimal_states=n_opt,
-                    optimum_density=n_opt / len(E))
+                    K=K, encoding=ENCODING, qubits=gt.n_problem_variables,
+                    instance_seed=seed, optimum=gt.qubo_energy,
+                    n_optimal_states=gt.extra.get("n_optimal_states"),
+                    optimum_density=gt.extra.get("optimum_density"))
 
-        # ---- classical QUBO solvers: the identical Qubo object ----------
-        # simulated_annealing and tabu take a Qubo directly, so they minimise
-        # exactly the function QAOA minimises -- no re-derivation anywhere.
-        for name, fn in (("annealing", qc.simulated_annealing), ("tabu", qc.tabu)):
-            t0 = time.perf_counter()
-            z, energy, meta = fn(q, seed=seed)
-            rows.append({**base, "algorithm": name, "family": "classical",
-                         "formulation": "qubo", "depth": None,
-                         "objective": float(energy),
-                         "gap": float(energy) - opt,
-                         "found_optimum": abs(float(energy) - opt) < 1e-9,
-                         "runtime_ms": (time.perf_counter() - t0) * 1e3,
-                         "shots": None, "two_qubit_gates": None,
-                         "optimum_probability": None})
-
-        # exhaustive enumeration of the same QUBO: this is the ground truth, so
-        # it is recorded as a row too rather than being implicit
-        rows.append({**base, "algorithm": "exhaustive", "family": "classical",
-                     "formulation": "qubo", "depth": None, "objective": opt,
-                     "gap": 0.0, "found_optimum": True,
-                     "runtime_ms": float("nan"),   # measured once below, not per row
-                     "shots": None, "two_qubit_gates": None,
-                     "optimum_probability": None})
-
-        # ---- greedy: native formulation, reported separately ------------
-        # Greedy operates on the coverage structure, not on a QUBO, so its
-        # objective lives in a different space.  To place it on the QUBO axis
-        # without changing what greedy does, its selection is held fixed and the
-        # QUBO is minimised over the remaining (auxiliary) variables exactly,
-        # using the enumeration already computed.  The row stays tagged
-        # formulation="native" so it is never averaged with the QUBO solvers.
-        g = qc.greedy(inst.A, inst.w, inst.c, K)
-        x_g = np.zeros(n_in, bool)
-        x_g[list(g.selected_inputs)] = True
-        xs = np.array([q.varmap.x_of(z) for z in Z])
-        match = np.all(xs == x_g, axis=1)
-        g_energy = float(E[match].min()) if match.any() else float("nan")
-        rows.append({**base, "algorithm": "greedy", "family": "classical",
-                     "formulation": "native", "depth": None,
-                     "objective": g_energy, "gap": g_energy - opt,
-                     "found_optimum": abs(g_energy - opt) < 1e-9,
-                     "runtime_ms": g.runtime_ms, "shots": None,
-                     "two_qubit_gates": None, "optimum_probability": None})
-
-        # ---- QAOA at each depth on the same QUBO ------------------------
-        for p in DEPTHS:
-            out = qa.Qaoa(q).run(p, shots=SHOTS, seed=seed,
-                                 n_restarts=N_RESTARTS, optimum_energy=opt)
-            rows.append({**base, "algorithm": f"qaoa_p{p}", "family": "quantum",
-                         "formulation": "qubo",
-                         "depth": p, "objective": out.best_sampled_energy,
-                         "gap": out.best_sampled_energy - opt,
-                         "found_optimum": abs(out.best_sampled_energy - opt) < 1e-9,
-                         "runtime_ms": out.runtime_ms, "shots": SHOTS,
-                         "two_qubit_gates": out.resources["two_qubit_gate_count"],
-                         "optimum_probability": out.optimum_probability,
-                         "expectation": out.final_expectation,
-                         "near_optimum_probability": out.near_optimum_probability,
-                         "optimizer_evals": out.optimizer.function_evaluations})
+        for r in out:
+            name = (f"qaoa_p{r.qaoa_depth}" if r.algorithm == "qaoa"
+                    else "annealing" if r.algorithm == "simulated_annealing"
+                    else "exhaustive" if r.algorithm == "qubo_exhaustive"
+                    else r.algorithm)
+            sm = r.sampling_metrics or {}
+            qres = (r.quantum_resources or {}).get("resources", {})
+            rows.append({
+                **base, "algorithm": name,
+                "family": "quantum" if r.algorithm == "qaoa" else "classical",
+                "formulation": r.formulation, "depth": r.qaoa_depth,
+                # The comparison axis is QUBO energy: the one quantity every
+                # method above produces for the same object.
+                "objective": r.qubo_energy,
+                "gap": r.qubo_gap_abs,
+                "found_optimum": bool(abs(r.qubo_gap_abs) < 1e-9),
+                "runtime_ms": r.runtime_ms,
+                "wall_clock_comparable": r.wall_clock_comparable,
+                "shots": r.shots,
+                "two_qubit_gates": qres.get("two_qubit_gate_count"),
+                "optimum_probability": sm.get("optimum_probability"),
+                "near_optimum_probability": sm.get("near_optimum_probability"),
+                "expectation": sm.get("final_expectation"),
+                "feasible_probability": sm.get("feasible_probability"),
+                # Native-axis coverage, so the QUBO winner can be checked
+                # against what it actually selects.
+                "coverage_fraction": r.coverage_fraction,
+                "n_selected": r.n_selected,
+            })
         print(f"n_in={n_in} seed={seed} done ({time.perf_counter()-t_start:.0f}s)")
 
+    allrecs.to_jsonl(OUT / "headtohead_records.jsonl")
     df = pd.DataFrame(rows)
-    OUT.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUT / "headtohead.csv", index=False)
 
-    env = {"python": sys.version.split()[0], "platform": platform.platform(),
-           "numpy": np.__version__, "regime": REGIME, "encoding": ENCODING,
-           "sizes": list(SIZES), "depths": list(DEPTHS), "seeds": list(SEEDS),
-           "shots": SHOTS, "n_restarts": N_RESTARTS, "k_frac": K_FRAC,
+    env = {"environment": rs.environment_fingerprint(),
+           "regime": REGIME, "encoding": ENCODING, "sizes": list(SIZES),
+           "depths": list(DEPTHS), "seeds": list(SEEDS), "shots": SHOTS,
+           "n_restarts": N_RESTARTS, "k_frac": K_FRAC,
+           "schema_version": rs.SCHEMA_VERSION,
+           "regime_chosen_from": "results/discriminating_power.csv",
            "total_runtime_s": round(time.perf_counter() - t_start, 1)}
     (OUT / "headtohead_env.json").write_text(json.dumps(env, indent=2))
-    print(f"\n{len(df)} rows -> {OUT/'headtohead.csv'}")
+    print(f"\n{len(df)} rows, {len(allrecs)} records -> {OUT}")
+    print(df.groupby("algorithm").found_optimum.mean().round(3).to_string())
 
 
 if __name__ == "__main__":

@@ -63,6 +63,16 @@ class Instance:
     input_names: list[str] = field(default_factory=list)
     outcome_names: list[str] = field(default_factory=list)
     notes: str = ""
+    # Conjunctive rule arms (spec section 21/22).  `None` means pure binary
+    # incidence: every edge of A is its own arm, which is the historical
+    # behaviour.  Otherwise each entry is (outcome_index, input_indices) and
+    #
+    #     outcome j is covered  <=>  some arm of j has ALL its inputs selected
+    #
+    # so coverage is a disjunction of conjunctions (monotone DNF) rather than
+    # simple incidence.  An arm with an EMPTY input tuple is always satisfied
+    # and marks an outcome a rule engine emits unconditionally.
+    arms: list[tuple[int, tuple[int, ...]]] | None = None
 
     # ---- shape helpers ---------------------------------------------------
     @property
@@ -91,6 +101,73 @@ class Instance:
             self.input_names = [f"input_{i:03d}" for i in range(self.n_inputs)]
         if not self.outcome_names:
             self.outcome_names = [f"outcome_{j:03d}" for j in range(self.n_outcomes)]
+        self._arm_cache = None
+        if self.arms is not None:
+            self.arms = self._normalise_arms(self.arms)
+
+    def _normalise_arms(self, arms) -> list[tuple[int, tuple[int, ...]]]:
+        """Canonicalise arms and enforce agreement with the incidence matrix.
+
+        A and arms must describe the same edge set: A is the OR-flattening of
+        the arms.  Enforcing that here means `covered()` and every statistic
+        derived from A refer to one problem, so a solver that reads A cannot
+        silently optimise a different instance from one that reads arms.
+        """
+        out = []
+        for entry in arms:
+            j, members = entry
+            j = int(j)
+            if not 0 <= j < self.n_outcomes:
+                raise ValueError(f"arm outcome index {j} out of range")
+            mem = tuple(sorted({int(i) for i in members}))
+            for i in mem:
+                if not 0 <= i < self.n_inputs:
+                    raise ValueError(f"arm input index {i} out of range")
+                if not self.A[i, j]:
+                    raise ValueError(
+                        f"arm ({self.outcome_names[j]}) references input "
+                        f"{self.input_names[i]} that is absent from A")
+            out.append((j, mem))
+        out = sorted(set(out))
+        # Every incidence edge must be explained by at least one arm.
+        explained = np.zeros_like(self.A, dtype=bool)
+        for j, mem in out:
+            for i in mem:
+                explained[i, j] = True
+        missing = np.argwhere((self.A > 0) & ~explained)
+        if missing.size:
+            i, j = missing[0]
+            raise ValueError(
+                f"A has edge ({self.input_names[i]} -> {self.outcome_names[j]}) "
+                f"that appears in no arm; A must be the OR-flattening of arms")
+        return out
+
+    @property
+    def n_arms(self) -> int:
+        return len(self.arm_list())
+
+    def arm_list(self) -> list[tuple[int, tuple[int, ...]]]:
+        """Arms, synthesising singleton arms from A when none were supplied."""
+        if self.arms is not None:
+            return self.arms
+        return [(int(j), (int(i),)) for i, j in np.argwhere(self.A > 0)]
+
+    @property
+    def is_conjunctive(self) -> bool:
+        """True when some arm needs more than one input simultaneously."""
+        return self.arms is not None and any(len(m) != 1 for _, m in self.arms)
+
+    def _arm_matrix(self):
+        """(membership matrix, arm->outcome) with the empty-arm mask folded in."""
+        if self._arm_cache is None:
+            arms = self.arm_list()
+            M = np.zeros((len(arms), self.n_inputs), dtype=bool)
+            owner = np.zeros(len(arms), dtype=np.int64)
+            for a, (j, mem) in enumerate(arms):
+                owner[a] = j
+                M[a, list(mem)] = True
+            self._arm_cache = (M, owner)
+        return self._arm_cache
 
     # ---- structural statistics ------------------------------------------
     @property
@@ -135,11 +212,22 @@ class Instance:
 
     # ---- objective evaluation (the ground-truth definition) --------------
     def covered(self, x: np.ndarray) -> np.ndarray:
-        """Boolean mask of outcomes covered by input selection x."""
+        """Boolean mask of outcomes covered by input selection x.
+
+        This is the single definition of coverage in the framework; every
+        solver and the QUBO builder score against it (spec section 2.2).
+        """
         x = np.asarray(x, dtype=bool)
-        if not x.any():
-            return np.zeros(self.n_outcomes, bool)
-        return self.A[x].sum(axis=0) > 0
+        if self.arms is None:
+            if not x.any():
+                return np.zeros(self.n_outcomes, bool)
+            return self.A[x].sum(axis=0) > 0
+        M, owner = self._arm_matrix()
+        # An arm is satisfied iff it has no unselected member.
+        satisfied = ~(M & ~x[None, :]).any(axis=1)
+        y = np.zeros(self.n_outcomes, bool)
+        y[owner[satisfied]] = True
+        return y
 
     def coverage_weight(self, x: np.ndarray) -> float:
         """Total weight of outcomes covered -- the quantity maximized in mode A."""
@@ -157,6 +245,8 @@ class Instance:
         h.update(np.ascontiguousarray(self.A).tobytes())
         h.update(np.ascontiguousarray(np.round(self.w, 10)).tobytes())
         h.update(np.ascontiguousarray(np.round(self.c, 10)).tobytes())
+        if self.arms is not None:
+            h.update(repr(self.arms).encode())
         return h.hexdigest()[:16]
 
     def metadata(self) -> dict:
@@ -177,6 +267,11 @@ class Instance:
             "n_unreachable_outcomes": int((od == 0).sum()),
             "input_degree_mean": round(float(self.input_degree.mean()), 4),
             "mean_pairwise_overlap": round(self.mean_offdiag_overlap(), 6),
+            "n_arms": self.n_arms,
+            "max_arm_size": int(max((len(m) for _, m in self.arm_list()), default=0)),
+            "is_conjunctive": self.is_conjunctive,
+            "n_unconditional_outcomes": int(
+                len({j for j, m in self.arm_list() if not m})),
             "checksum": self.checksum(),
             "notes": self.notes,
         }
@@ -193,6 +288,10 @@ class Instance:
         np.savetxt(d / "input_costs.csv", self.c, fmt="%.17g", delimiter=",")
         (d / "inputs.txt").write_text("\n".join(self.input_names) + "\n")
         (d / "outcomes.txt").write_text("\n".join(self.outcome_names) + "\n")
+        if self.arms is not None:
+            lines = ["outcome_index,input_indices"]
+            lines += [f"{j}," + " ".join(str(i) for i in mem) for j, mem in self.arms]
+            (d / "arms.csv").write_text("\n".join(lines) + "\n")
         (d / "metadata.json").write_text(json.dumps(self.metadata(), indent=2) + "\n")
         return d
 
@@ -203,6 +302,15 @@ class Instance:
         A = np.loadtxt(d / "incidence.csv", delimiter=",", dtype=np.uint8, ndmin=2)
         w = np.loadtxt(d / "outcome_weights.csv", delimiter=",", ndmin=1)
         c = np.loadtxt(d / "input_costs.csv", delimiter=",", ndmin=1)
+        arms = None
+        arms_path = d / "arms.csv"
+        if arms_path.exists():
+            arms = []
+            for line in arms_path.read_text().splitlines()[1:]:
+                if not line.strip():
+                    continue
+                head, _, tail = line.partition(",")
+                arms.append((int(head), tuple(int(t) for t in tail.split())))
         inst = cls(
             instance_id=meta["instance_id"],
             regime=meta["regime"],
@@ -214,6 +322,7 @@ class Instance:
             input_names=(d / "inputs.txt").read_text().split(),
             outcome_names=(d / "outcomes.txt").read_text().split(),
             notes=meta.get("notes", ""),
+            arms=arms,
         )
         if inst.checksum() != meta["checksum"]:
             raise ValueError(
@@ -239,7 +348,32 @@ class Instance:
             deg = A[:, reach].sum(axis=0)
             o_order = np.lexsort((rng.random(len(reach)), -deg))
             reach = np.sort(reach[o_order[:n_outcomes]])
-        A = A[:, reach]
+        sub_arms = None
+        if self.arms is not None:
+            # An arm is a conjunction: dropping any member destroys the arm
+            # rather than weakening it, so a sub-instance keeps only arms whose
+            # every member survives.  Reachability and A are then rebuilt from
+            # the survivors, otherwise A would assert coverage routes that no
+            # remaining arm can deliver.
+            imap = {int(i): k for k, i in enumerate(keep_i)}
+            kept = [(j, tuple(imap[i] for i in mem)) for j, mem in self.arms
+                    if all(i in imap for i in mem)]
+            n_arms_by_outcome = np.zeros(self.n_outcomes, dtype=int)
+            for j, _ in kept:
+                n_arms_by_outcome[j] += 1
+            reach = np.flatnonzero(n_arms_by_outcome > 0)
+            if n_outcomes is not None and len(reach) > n_outcomes:
+                o_order = np.lexsort((rng.random(len(reach)),
+                                      -n_arms_by_outcome[reach]))
+                reach = np.sort(reach[o_order[:n_outcomes]])
+            jmap = {int(j): k for k, j in enumerate(reach)}
+            sub_arms = [(jmap[j], mem) for j, mem in kept if j in jmap]
+            A = np.zeros((len(keep_i), len(reach)), dtype=np.uint8)
+            for j, mem in sub_arms:
+                for i in mem:
+                    A[i, j] = 1
+        else:
+            A = A[:, reach]
         return Instance(
             instance_id=instance_id or f"{self.instance_id}-n{n_inputs}",
             regime=self.regime,
@@ -251,6 +385,7 @@ class Instance:
             input_names=[self.input_names[i] for i in keep_i],
             outcome_names=[self.outcome_names[j] for j in reach],
             notes=f"sub-instance of {self.instance_id}",
+            arms=sub_arms,
         )
 
 
@@ -436,15 +571,47 @@ def _heme_shaped(n_inputs: int, n_outcomes: int, rng: np.random.Generator) -> np
 
 def heme_benchmark(seed: int = 42, weight_scheme: str = "uniform",
                    instance_id: str = "QBMED-HEME-001") -> Instance:
-    """The flagship 66-input / 88-outcome benchmark instance (spec section 3)."""
+    """The flagship 66-input / 88-outcome benchmark instance (spec section 3).
+
+    Loads the real Q-BenchMed-Heme domain profile and projects it onto the core
+    `Instance` type.  The import is local because the core must not depend on
+    the domain layer (spec section 24): `qbm.instances` is domain-independent
+    and this one convenience constructor is the only place the flagship domain
+    is named.
+
+    `weight_scheme` other than "uniform" re-derives outcome weights from the
+    incidence structure, which makes the instance a *variant* of the published
+    benchmark rather than the benchmark itself; the instance_id is suffixed so
+    the two can never be confused in a results table.
+    """
+    from qbm.domains import heme as _heme  # local: core must not import domains
+
+    inst = _heme.build_profile().to_instance(instance_id=instance_id)
+    if weight_scheme != "uniform":
+        rng = np.random.default_rng(seed)
+        inst = Instance(
+            instance_id=f"{instance_id}-{weight_scheme}",
+            regime=inst.regime, seed=seed, A=inst.A,
+            w=make_weights(inst.A, weight_scheme, rng), c=inst.c,
+            weight_scheme=weight_scheme,
+            input_names=inst.input_names, outcome_names=inst.outcome_names,
+            notes=inst.notes + f" | outcome weights re-derived: {weight_scheme}",
+            arms=inst.arms,
+        )
+    return inst
+
+
+def synthetic_heme_shaped(seed: int = 42, weight_scheme: str = "uniform",
+                          instance_id: str = "SYNTH-HEME-SHAPED") -> Instance:
+    """Panel-shaped synthetic instance -- the former stand-in, kept for scaling.
+
+    Contains no clinical knowledge and supports no clinical claim.  It exists
+    so degree structure can be varied freely without touching the real profile.
+    """
     inst = generate("heme_shaped", 66, 88, seed=seed,
                     weight_scheme=weight_scheme, instance_id=instance_id)
-    inst.notes = (
-        "SYNTHETIC stand-in for the 66x88 pathology knowledge export. "
-        "Degree structure imitates a laboratory panel; contains no clinical "
-        "knowledge and supports no clinical claim. Replace incidence.csv with "
-        "the real export to run the true benchmark."
-    )
+    inst.notes = ("SYNTHETIC panel-shaped instance; imitates laboratory degree "
+                  "structure only. Not the Q-BenchMed-Heme benchmark.")
     return inst
 
 

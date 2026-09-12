@@ -2,29 +2,38 @@
   "flagship": {
     "n_inputs": 66,
     "n_outcomes": 88,
-    "min_inputs_for_full_coverage": 17,
-    "coverage_at_budget_10": 0.8977,
+    "min_inputs_for_full_achievable_coverage": 37,
+    "max_coverage_fraction_of_all_outcomes": 0.9659,
+    "outcomes_unreachable_by_any_selection": true,
+    "coverage_at_budget_10": 0.5682,
     "ilp_runtime_ms_range": [
-      0.5,
-      39.2
+      0.7,
+      9.4
     ],
     "every_point_certified_optimal": true,
     "budget_range_swept": [
       1,
       66
     ],
-    "greedy_matches_optimum_below_saturation": 0.375,
-    "greedy_matches_optimum_whole_sweep": 0.833
+    "greedy_matches_optimum_below_saturation": 0.917,
+    "greedy_matches_optimum_whole_sweep": 0.5,
+    "greedy_stalls": true,
+    "greedy_stall_budget": 34,
+    "greedy_plateau_inputs": 33,
+    "greedy_plateau_coverage": 0.9432,
+    "greedy_failures_at_or_above_stall": 32,
+    "greedy_failures_below_stall": 1
   },
   "discriminating_power": {
-    "instances": 630,
-    "greedy_optimal_overall": 0.86,
+    "instances": 633,
+    "greedy_optimal_overall": 0.861,
     "greedy_optimal_by_regime": {
       "clustered": 0.771,
       "degree_capped": 0.714,
       "dense": 1.0,
       "high_overlap": 0.914,
       "low_overlap": 0.981,
+      "profile": 1.0,
       "sparse": 0.781
     },
     "hardest_cell": {
@@ -39,33 +48,33 @@
       19
     ],
     "qaoa_reaches_optimum_by_depth": {
-      "1": 0.6,
-      "2": 0.68,
-      "3": 0.7
+      "1": 0.64,
+      "2": 0.72,
+      "3": 0.64
     },
     "qaoa_reaches_optimum_by_size": {
-      "8": 0.967,
-      "10": 0.933,
-      "12": 0.733,
-      "14": 0.4,
-      "16": 0.267
+      "8": 1.0,
+      "10": 0.867,
+      "12": 0.667,
+      "14": 0.733,
+      "16": 0.067
     },
     "classical_reaches_optimum": {
-      "annealing (qubo)": 0.92,
+      "annealing (qubo)": 0.88,
       "exhaustive (qubo)": 1.0,
-      "greedy (native)": 0.66,
-      "tabu (qubo)": 0.98
+      "greedy (native)": 0.8,
+      "tabu (qubo)": 1.0
     },
-    "optimum_mass_enrichment_median": 2.24,
+    "optimum_mass_enrichment_median": 1.75,
     "optimum_mass_enrichment_range": [
-      0.012,
-      93.7
+      0.188,
+      87.3
     ],
-    "runs_at_or_below_chance_fraction": 0.24,
+    "runs_at_or_below_chance_fraction": 0.293,
     "two_qubit_gates_by_depth": {
-      "1": 214,
-      "2": 428,
-      "3": 642
+      "1": 209,
+      "2": 418,
+      "3": 628
     }
   },
   "penalty_landscape": {
@@ -92,24 +101,24 @@
     }
   },
   "noise": {
-    "sweep_points": 315,
-    "trajectories_per_point": 1500,
+    "sweep_points": 279,
+    "trajectories_per_point": 400,
     "degradation_at_1pct_depolarizing": {
-      "measurement_error": 5.2,
-      "single_qubit_error": 10.0,
-      "two_qubit_error": 85.1
+      "measurement_error": 0.4,
+      "single_qubit_error": -1.6,
+      "two_qubit_error": 37.7
     },
     "ideal_mean_energy_by_depth": {
-      "1": 191.0,
-      "2": 225.1,
-      "3": 210.3
+      "1": 113.3,
+      "2": 86.5,
+      "3": 124.5
     },
     "dephasing_invisible_at_depth_1": true,
-    "fully_resolved_two_qubit_rate": 0.01,
-    "resolved_fraction_at_smallest_rate": 0.778,
+    "fully_resolved_two_qubit_rate": 0.05,
+    "resolved_fraction_at_smallest_rate": 0.222,
     "discarded_sweep": "noise_sweep_INVALID_phasebug.csv -- see REPORT.md"
   },
   "tests": {
-    "passing": 262
+    "passing": 354
   }
 }

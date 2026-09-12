@@ -1137,6 +1137,7 @@ fn build_heuristic_candidate(
         inputs,
         outcomes,
         relationships,
+        unconditional_outcomes: Vec::new(),
         constraints,
         objective: BenchmarkObjective::MaximizeWeightedCoverage,
         provenance,
@@ -1226,10 +1227,9 @@ fn build_collections(
             let target = relationship_target(input_id, outcome_id);
             builder.extracted_fields.insert(target.clone());
             builder.add_evidence(&target, &points.iter().cloned().collect::<Vec<_>>());
-            IncidenceRelationship {
-                input_id: input_id.clone(),
-                outcome_id: outcome_id.clone(),
-            }
+            // The conservative heuristic only ever observes plain incidence,
+            // so it emits the disjunctive shape and never invents an arm.
+            IncidenceRelationship::supporting(input_id.clone(), outcome_id.clone())
         })
         .collect();
     (inputs, outcomes, relationships)

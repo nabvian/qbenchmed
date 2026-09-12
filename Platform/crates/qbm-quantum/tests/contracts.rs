@@ -65,19 +65,11 @@ fn profile() -> BenchmarkProfile {
             },
         ],
         relationships: vec![
-            IncidenceRelationship {
-                input_id: "assay-a".to_owned(),
-                outcome_id: "phenotype-a".to_owned(),
-            },
-            IncidenceRelationship {
-                input_id: "assay-b".to_owned(),
-                outcome_id: "phenotype-a".to_owned(),
-            },
-            IncidenceRelationship {
-                input_id: "assay-b".to_owned(),
-                outcome_id: "phenotype-b".to_owned(),
-            },
+            IncidenceRelationship::supporting("assay-a", "phenotype-a"),
+            IncidenceRelationship::supporting("assay-b", "phenotype-a"),
+            IncidenceRelationship::supporting("assay-b", "phenotype-b"),
         ],
+        unconditional_outcomes: Vec::new(),
         constraints: BenchmarkConstraints {
             min_selected: 0,
             max_selected: None,

@@ -14,14 +14,9 @@
     "git_commit": null
   },
   "regime": "degree_capped",
-  "encoding": "pairwise",
-  "sizes": [
-    8,
-    10,
-    12,
-    14,
-    16
-  ],
+  "n_inputs": 10,
+  "n_outcomes": 13,
+  "K": 3,
   "depths": [
     1,
     2,
@@ -30,14 +25,27 @@
   "seeds": [
     0,
     1,
-    2,
-    3,
-    4
+    2
   ],
-  "shots": 4096,
-  "n_restarts": 3,
-  "k_frac": 0.3,
+  "rates": [
+    0.0,
+    0.001,
+    0.005,
+    0.01,
+    0.02,
+    0.05
+  ],
+  "mechanisms": [
+    "single_qubit_error",
+    "two_qubit_error",
+    "measurement_error"
+  ],
+  "channels": [
+    "depolarizing",
+    "dephasing"
+  ],
+  "trajectories": 400,
+  "parameters": "optimised once on the ideal simulator, then frozen",
   "schema_version": "qbm-result/1.1.0",
-  "regime_chosen_from": "results/discriminating_power.csv",
-  "total_runtime_s": 207.0
+  "total_runtime_s": 51.1
 }

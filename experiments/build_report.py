@@ -65,6 +65,17 @@ def summarise() -> tuple[dict, pd.DataFrame]:
     pl = pd.read_csv(RES / "penalty_landscape.csv")
     ns = pd.read_csv(RES / "noise_sweep.csv")
 
+    # Saturation is defined against ACHIEVABLE coverage, not against all 88
+    # outcomes.  On the real profile some outcomes are unreachable by any
+    # selection -- a conjunctive outcome whose arms are never jointly
+    # satisfiable within the input set -- so coverage_fraction has a ceiling
+    # below 1.0 and a 0.999 threshold on it never fires.  The achievable
+    # denominator is the honest one: it asks what fraction of the reachable
+    # outcome space a panel covers.
+    sat = cv[cv.ilp_cov_achievable >= 0.999]
+    k_sat = int(sat.K.min()) if len(sat) else int(cv.K.max())
+    max_cov = float(cv.ilp_cov.max())
+
     q = hh[hh.family == "quantum"].copy()
     q["uniform_prob"] = q.n_optimal_states / (2.0 ** q.qubits)
     q["enrichment"] = q.optimum_probability / q.uniform_prob
@@ -74,7 +85,9 @@ def summarise() -> tuple[dict, pd.DataFrame]:
         "flagship": {
             "n_inputs": 66,
             "n_outcomes": 88,
-            "min_inputs_for_full_coverage": int(cv[cv.ilp_cov >= 0.999].K.min()),
+            "min_inputs_for_full_achievable_coverage": k_sat,
+            "max_coverage_fraction_of_all_outcomes": round(max_cov, 4),
+            "outcomes_unreachable_by_any_selection": bool(max_cov < 0.999),
             "coverage_at_budget_10": round(float(cv.loc[cv.K == 10, "ilp_cov"].iloc[0]), 4),
             "ilp_runtime_ms_range": [round(float(cv.ilp_ms.min()), 1),
                                      round(float(cv.ilp_ms.max()), 1)],
@@ -87,8 +100,22 @@ def summarise() -> tuple[dict, pd.DataFrame]:
             # information, and give the whole-sweep figure alongside it so the
             # difference is visible rather than hidden by a choice of range.
             "greedy_matches_optimum_below_saturation": round(float(
-                cv[cv.K < int(cv[cv.ilp_cov >= 0.999].K.min())].greedy_is_optimal.mean()), 3),
+                cv[cv.K < k_sat].greedy_is_optimal.mean()), 3),
             "greedy_matches_optimum_whole_sweep": round(float(cv.greedy_is_optimal.mean()), 3),
+            # Greedy's failures cluster at LARGE budgets, not small ones,
+            # because it runs out of improving single-input moves before it
+            # runs out of budget and then cannot use the rest.
+            "greedy_stalls": bool(cv.greedy_stalled.any()),
+            "greedy_stall_budget": (int(cv[cv.greedy_stalled].K.min())
+                                    if cv.greedy_stalled.any() else None),
+            "greedy_plateau_inputs": (int(cv[cv.greedy_stalled].greedy_n_selected.iloc[0])
+                                      if cv.greedy_stalled.any() else None),
+            "greedy_plateau_coverage": (round(float(cv[cv.greedy_stalled].greedy_cov.max()), 4)
+                                        if cv.greedy_stalled.any() else None),
+            "greedy_failures_at_or_above_stall": int(
+                (~cv[cv.greedy_stalled].greedy_is_optimal).sum()),
+            "greedy_failures_below_stall": int(
+                (~cv[~cv.greedy_stalled].greedy_is_optimal).sum()),
         },
         "discriminating_power": {
             "instances": int(len(dp)),

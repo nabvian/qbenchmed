@@ -1,10 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "qbenchmed"
 version = "0.1.0"
 description = "Reproducible benchmarking of quantum and classical optimization on structured biomedical problems"
 requires-python = ">=3.11"
-dependencies = ["numpy", "scipy"]
+# numpy/scipy: core numerics and the HiGHS ILP used for certified ground truth.
+# pandas: result tables in experiments/ and the report generator.
+dependencies = ["numpy", "scipy", "pandas"]
+
+[project.optional-dependencies]
+# qiskit is a VALIDATION reference only -- tests/test_simulator_crosscheck.py
+# checks our state-vector simulator against it. The library does not import
+# qiskit; those 40 tests skip cleanly when it is absent.
+dev = ["pytest", "qiskit>=1.0"]
+
+[tool.setuptools]
+# Flat layout with several non-package top-level dirs (results/, figures/,
+# experiments/, reproducibility/) -- name the one importable package explicitly
+# or setuptools refuses to guess.
+packages = ["qbm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# `slow` marks tests that run a statevector simulation. They are part of the
+# default suite -- a quantum framework whose quantum path is opt-out of CI is
+# not tested -- and the marker exists so a developer iterating on the classical
+# layer can skip them with `-m "not slow"`.
+markers = ["slow: runs a statevector simulation (seconds, not milliseconds)"]

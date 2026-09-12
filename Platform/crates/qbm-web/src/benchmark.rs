@@ -69,6 +69,11 @@ pub(crate) struct ClassicalOptimizationArtifact {
     pub coverage_at_k: Vec<CoveragePoint>,
     pub minimum_panels: Vec<MinimumPanelPoint>,
     pub solver_results: Vec<Measured<OptimizationResult>>,
+    /// Panel-size ceiling every entry in `solver_results` was run at.
+    ///
+    /// The coverage sweep varies its ceiling; the comparison fixes one. Naming
+    /// it here keeps two different questions from reading as one.
+    pub solver_comparison_ceiling: usize,
     pub deterministic_seed: u64,
     pub limitations: Vec<String>,
 }
@@ -166,7 +171,11 @@ pub(crate) fn analyze_profile(
         })
         .collect();
     let ceiling = default_panel_ceiling(profile);
+    // The comparison answers "at one fixed ceiling, how close do the cheap
+    // solvers get to the certified answer?", so the certified solver has to be
+    // in it — otherwise there is nothing to compare against.
     let mut kinds = vec![
+        SolverKind::Ilp,
         SolverKind::Greedy,
         SolverKind::SimulatedAnnealing,
         SolverKind::TabuSearch,
@@ -206,9 +215,13 @@ pub(crate) fn analyze_profile(
         coverage_at_k: coverage,
         minimum_panels,
         solver_results,
+        solver_comparison_ceiling: ceiling,
         deterministic_seed: config.default_seed,
         limitations: vec![
-            "Exact optimality is claimed only when the exact solver completed within its declared bound.".to_owned(),
+            format!(
+                "The solver comparison runs every solver at one fixed ceiling of {ceiling} inputs, which is a narrower question than the coverage sweep above it."
+            ),
+            "Optimality is claimed only when an exact or certified search completed within its declared bound; the result says which.".to_owned(),
             "Greedy, simulated-annealing and tabu results are reproducible baselines, not optimality proofs.".to_owned(),
             "Results optimize only the approved profile relationships, costs, weights and constraints; they do not establish clinical validity.".to_owned(),
         ],
@@ -359,10 +372,15 @@ fn measured<T>(result: Result<T, qbm_benchmark::BenchmarkError>) -> Measured<T> 
 }
 
 fn scalable_solver(profile: &BenchmarkProfile) -> SolverKind {
+    // Both the sweep and the minimum panel deserve a proof rather than a
+    // baseline, and both now get one: exhaustive enumeration where it is cheap,
+    // certified branch-and-bound beyond its ceiling. This used to fall back to
+    // greedy above twenty inputs, which reported a nineteen-input panel on a
+    // profile whose true optimum is seventeen.
     if profile.inputs.len() <= SolverConfig::default().exact_max_inputs {
         SolverKind::Exact
     } else {
-        SolverKind::Greedy
+        SolverKind::Ilp
     }
 }
 
@@ -467,10 +485,10 @@ mod tests {
             cost: 1.0,
             tags: vec!["test".to_owned()],
         }];
-        let mut relationships = vec![IncidenceRelationship {
-            input_id: "i1".to_owned(),
-            outcome_id: "o1".to_owned(),
-        }];
+        let mut relationships = vec![IncidenceRelationship::supporting(
+            "i1".to_owned(),
+            "o1".to_owned(),
+        )];
         if extra {
             inputs.push(BenchmarkInput {
                 id: "i2".to_owned(),
@@ -478,10 +496,10 @@ mod tests {
                 cost: 1.0,
                 tags: vec!["test".to_owned()],
             });
-            relationships.push(IncidenceRelationship {
-                input_id: "i2".to_owned(),
-                outcome_id: "o2".to_owned(),
-            });
+            relationships.push(IncidenceRelationship::supporting(
+                "i2".to_owned(),
+                "o2".to_owned(),
+            ));
         }
         BenchmarkProfile {
             schema_version: BENCHMARK_PROFILE_SCHEMA_VERSION.to_owned(),
@@ -509,6 +527,7 @@ mod tests {
                 },
             ],
             relationships,
+            unconditional_outcomes: Vec::new(),
             constraints: BenchmarkConstraints {
                 min_selected: 0,
                 max_selected: None,
@@ -533,7 +552,33 @@ mod tests {
         assert_eq!(analysis.structural.input_count, 2);
         assert!(!analysis.coverage_at_k.is_empty());
         assert_eq!(analysis.minimum_panels.len(), 3);
-        assert_eq!(analysis.solver_results.len(), 4);
+        // exact, certified, greedy, annealing, tabu
+        assert_eq!(analysis.solver_results.len(), 5);
+        assert_eq!(analysis.solver_comparison_ceiling, 2);
+    }
+
+    #[test]
+    fn every_coverage_and_minimum_panel_answer_carries_a_proof() {
+        // The whole point of the certified solver: these two questions must
+        // never come back as an unproven baseline again.
+        let analysis = analyze_profile(&profile(true), &"a".repeat(64)).unwrap();
+        for point in &analysis.coverage_at_k {
+            assert!(
+                point.result.optimality_proven,
+                "coverage at k={} was not proven",
+                point.k
+            );
+        }
+        for panel in &analysis.minimum_panels {
+            let Some(result) = &panel.result.value else {
+                continue;
+            };
+            assert!(
+                result.optimality_proven,
+                "minimum panel at floor {} was not proven",
+                panel.coverage_floor
+            );
+        }
     }
 
     #[test]

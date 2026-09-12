@@ -1,6 +1,6 @@
 //! Exact QUBO/Ising encoding and transparent resource diagnostics.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -694,6 +694,3 @@ fn binary_weights(maximum: usize) -> Vec<usize> {
     let bits = usize::BITS as usize - maximum.leading_zeros() as usize;
     (0..bits).map(|bit| 1_usize << bit).collect()
 }
-
-#[allow(dead_code)]
-fn _deterministic_set_marker(_: BTreeSet<String>) {}

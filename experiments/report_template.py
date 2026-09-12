@@ -67,11 +67,19 @@ mathematics is correct and to find out where the comparison is informative
 before the Rust core is written. It is not the Rust authoritative
 implementation the specification calls for.
 
-The 66\u00d788 instance here is a **synthetic stand-in**. The pathology knowledge
-export described in the specification is not present in this workspace, so the
-flagship instance is generated with a structure matched to its declared shape.
-It contains no clinical content and no patient data. Nothing in this report
-says anything about hematology.
+The 66\u00d788 instance is the **real profile**, not a stand-in: it is built from
+`benchmarks/heme/QBMED-HEME-001/`, an export of the outcome-by-input trigger and
+wiring matrix of the pathology rule engine (audit snapshot 2026-08-29, PRO-EXEC
+bundle 1.2.0), with every relationship carrying its source row. It records which
+laboratory inputs each rule reads; it contains **no patient data**.
+
+That the structure is real is what makes the results below informative \u2014 the
+conjunctive rules that break greedy are a property of the rule engine, not of a
+generator. It is also why the claims policy matters more, not less. Nothing here
+is a statement about hematology: a covering panel is a solution to a coverage
+objective over a rule graph, and **it does not follow that any test is clinically
+unnecessary**, that a smaller panel is safe, or that the outcome set is
+clinically validated because it can be optimized.
 
 Per the specification's claims policy: no quantum advantage is claimed, no
 clinical validity is claimed, and wall-clock time is never used to rank a CPU
@@ -79,24 +87,54 @@ state-vector simulation against a classical solver.
 
 ---
 
-## 1. The flagship instance is not hard
+## 1. The flagship instance is easy to solve exactly, but not trivial to solve well
 
 On the 66-input / 88-outcome instance, exact ILP (HiGHS) returns a **certified
 optimum at every budget** from 1 to 66, in {f['ilp_runtime_ms_range'][0]}\u2013{f['ilp_runtime_ms_range'][1]} ms.
 
-- **{f['min_inputs_for_full_coverage']} inputs** suffice to cover all 88 outcomes.
-- A budget of 10 inputs already reaches **{_pct(f['coverage_at_budget_10'])}** coverage.
+- **{f['min_inputs_for_full_achievable_coverage']} inputs** suffice to cover the
+  entire *achievable* outcome space. Coverage of all 88 outcomes tops out at
+  **{_pct(f['max_coverage_fraction_of_all_outcomes'])}**: some outcomes are
+  unreachable by any selection, because their conjunctive arms are never
+  jointly satisfiable within the 66-input set. Reporting coverage against the
+  reachable denominator is the honest choice; against all 88 it would look like
+  a permanent failure that no optimizer can fix.
+- A budget of 10 inputs already reaches **{_pct(f['coverage_at_budget_10'])}** of
+  all 88 outcomes.
 - Greedy matches the certified optimum at **{_pct(f['greedy_matches_optimum_below_saturation'])}**
-  of budgets below saturation (K under {f['min_inputs_for_full_coverage']}), and
+  of budgets below saturation (K under {f['min_inputs_for_full_achievable_coverage']}), and
   {_pct(f['greedy_matches_optimum_whole_sweep'])} across the whole sweep
-  (K = {f['budget_range_swept'][0]} to {f['budget_range_swept'][1]}). The two differ because
-  past saturation every method ties at full coverage; the pre-saturation figure
-  is the informative one.
+  (K = {f['budget_range_swept'][0]} to {f['budget_range_swept'][1]}). The two figures
+  differ for a reason worth stating plainly, and it is not the usual one \u2014 see
+  below.
 
-The coverage curve is steeply concave: the objective is submodular, so greedy
-carries a 1\u22121/e guarantee and in practice does much better than that bound.
-**An instance solved exactly in milliseconds is not a candidate for quantum
-speedup.** This is the first substantive finding, and it is negative.
+### Greedy has a ceiling that budget cannot lift
+
+Greedy's failures are **not** at tight budgets, where one might expect them:
+{f['greedy_failures_below_stall']} occur before it stalls and
+{f['greedy_failures_at_or_above_stall']} after. From K = {f['greedy_stall_budget']}
+onward greedy halts at {f['greedy_plateau_inputs']} inputs and
+{_pct(f['greedy_plateau_coverage'])} coverage and does not move again however much
+budget it is given, while ILP continues to
+{_pct(f['max_coverage_fraction_of_all_outcomes'])}.
+
+The mechanism is conjunctivity. The outcomes greedy cannot reach fire only when
+two or more inputs are present together, so **no single input shows a positive
+marginal gain** and marginal-gain selection has nowhere to step. This is the
+exact failure mode submodularity rules out, and it is visible here only because
+the profile is a real one with conjunctive rules rather than a binary
+incidence matrix. It is also the property that makes the instance worth giving
+to a non-greedy optimizer at all.
+
+Two things follow, and they point in opposite directions. **An instance solved
+exactly in milliseconds is not a candidate for quantum speedup** \u2014 that is the
+first substantive finding, and it is negative. But greedy failing at a
+substantial share of pre-saturation budgets shows the instance is not a
+degenerate tie either: the choice of optimizer changes the answer. This is a
+consequence of the profile being *conjunctive*. Where outcomes fire only on
+combinations of inputs, weighted coverage is no longer submodular, greedy's
+1\u22121/e guarantee does not apply, and marginal-gain selection can be led astray
+by an input that pays off only in company.
 
 ![Classical baselines and the simulable window]({_fig('baselines')})
 
@@ -264,7 +302,8 @@ nothing here extrapolates to 66 inputs.
 ## 9. Limitations
 
 - Python reference implementation, not the Rust core.
-- Synthetic stand-in instance; the real 66\u00d788 export was never available.
+- The flagship instance is the real 66\u00d788 export; the SYNTHETIC instances are
+  the generator's, used only for the structural survey and the head-to-head.
 - Simulable range is 8\u201316 inputs. The flagship's exact QUBO needs 154+ qubits.
 - 10 instance seeds in the head-to-head, 3 in the noise sweep \u2014 below the 30
   the specification suggests for stochastic experiments.
