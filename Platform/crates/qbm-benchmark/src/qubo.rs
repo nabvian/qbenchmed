@@ -19,6 +19,12 @@ pub enum QuboVariableKind {
     Outcome,
     /// Binary slack bit used to encode an equality/inequality exactly.
     Slack,
+    /// Marks one conjunctive arm of an outcome's rule as satisfied.
+    ///
+    /// An outcome covered by a combination of inputs cannot be expressed by a
+    /// direct input-to-outcome term, so each arm gets a variable that may only
+    /// rise when every input the arm needs is selected.
+    Arm,
 }
 
 /// Indexed QUBO variable with an auditable semantic source.
@@ -111,6 +117,9 @@ pub struct QuboMetrics {
     pub outcome_variable_count: usize,
     /// Ancillary constraint slack variables.
     pub slack_variable_count: usize,
+    /// Variables representing one conjunctive arm of an outcome's rule.
+    #[serde(default)]
+    pub arm_variable_count: usize,
     /// Number of non-zero linear coefficients.
     pub nonzero_linear_count: usize,
     /// Number of non-zero pair couplings.
@@ -233,25 +242,61 @@ pub fn build_qubo(
         builder.add_linear(index, -outcome.weight);
     }
 
-    for outcome in &profile.outcomes {
+    // Coverage is decided arm by arm, so the encoding needs one variable per
+    // arm sitting between the inputs and the outcome. Reading the relationship
+    // list directly would encode "any one input covers the outcome", which is
+    // the wrong problem for every profile whose triggers fire on combinations.
+    let model = crate::coverage::CoverageModel::compile(profile)?;
+    for (position, outcome) in profile.outcomes.iter().enumerate() {
         let outcome_index = outcome_indices[outcome.id.as_str()];
-        let covering_inputs: Vec<_> = profile
-            .relationships
-            .iter()
-            .filter(|relationship| relationship.outcome_id == outcome.id)
-            .map(|relationship| input_indices[relationship.input_id.as_str()])
-            .collect();
-        if covering_inputs.is_empty() {
+        let rule = &model.rules[position];
+
+        if rule.unconditional {
+            // Covered by every selection, so nothing constrains the variable
+            // and the reward already on it stands.
+            continue;
+        }
+        if rule.arms.is_empty() {
             builder.add_linear(outcome_index, penalty);
             continue;
         }
 
-        let mut expression: Vec<_> = covering_inputs.iter().map(|index| (*index, 1.0)).collect();
+        let mut arm_indices = Vec::with_capacity(rule.arms.len());
+        for (ordinal, arm) in rule.arms.iter().enumerate() {
+            let label = if arm.path.is_empty() {
+                format!("{ordinal}")
+            } else {
+                arm.path.clone()
+            };
+            let arm_index = builder.variable(
+                format!("arm:{}:{label}", outcome.id),
+                QuboVariableKind::Arm,
+                format!("arm:{}:{label}", outcome.id),
+            );
+            arm_indices.push(arm_index);
+
+            // An arm may only fire when every input it needs is selected and
+            // every input it forbids is not. Both directions are one-sided:
+            // nothing rewards an arm directly, so the objective can only push
+            // it up, and these terms are what stop it rising for free.
+            //
+            //   u * (1 - x) penalises firing without a needed input
+            //   u * x       penalises firing despite a forbidden one
+            arm.present_closure.for_each(|input| {
+                let x = input_indices[profile.inputs[input].id.as_str()];
+                builder.add_linear(arm_index, penalty);
+                builder.add_quadratic(arm_index, x, -penalty);
+            });
+            arm.absent_closure.for_each(|input| {
+                let x = input_indices[profile.inputs[input].id.as_str()];
+                builder.add_quadratic(arm_index, x, penalty);
+            });
+        }
+
+        // The outcome fires when at least one of its arms does.
+        let mut expression: Vec<_> = arm_indices.iter().map(|index| (*index, 1.0)).collect();
         expression.push((outcome_index, -1.0));
-        for (bit, weight) in binary_weights(covering_inputs.len())
-            .into_iter()
-            .enumerate()
-        {
+        for (bit, weight) in binary_weights(arm_indices.len()).into_iter().enumerate() {
             let index = builder.variable(
                 format!("slack:outcome:{}:{bit}", outcome.id),
                 QuboVariableKind::Slack,
@@ -456,6 +501,11 @@ impl QuboModel {
                 .iter()
                 .filter(|variable| variable.kind == QuboVariableKind::Slack)
                 .count(),
+            arm_variable_count: self
+                .variables
+                .iter()
+                .filter(|variable| variable.kind == QuboVariableKind::Arm)
+                .count(),
             nonzero_linear_count: self.linear.iter().filter(|value| **value != 0.0).count(),
             coupling_count: self.quadratic.len(),
             coupling_density: if possible_couplings == 0 {
@@ -623,6 +673,15 @@ impl QuboBuilder {
 
     fn add_linear(&mut self, index: usize, coefficient: f64) {
         self.linear[index] += coefficient;
+    }
+
+    fn add_quadratic(&mut self, left: usize, right: usize, coefficient: f64) {
+        let key = if left < right {
+            (left, right)
+        } else {
+            (right, left)
+        };
+        *self.quadratic.entry(key).or_default() += coefficient;
     }
 
     fn add_square(&mut self, terms: &[(usize, f64)], constant: f64, penalty: f64) {
