@@ -197,12 +197,49 @@ rules:
             .iter()
             .any(|input| input.id == "EGFR_SENSITISING" || input.id == "ALK_POSITIVE")
     );
-    assert_eq!(candidate.profile.relationships.len(), 4);
+    // The rule's three positive conditions hold together, so they are one arm
+    // of three members rather than three independent edges. EXCLUSION_FLAG sits
+    // under `not`, which is satisfied when that input is absent, so it creates
+    // no requirement and no relationship.
+    assert_eq!(candidate.profile.relationships.len(), 3);
+    let paths: Vec<_> = candidate
+        .profile
+        .relationships
+        .iter()
+        .map(|relationship| relationship.path.as_str())
+        .collect();
+    assert!(
+        paths.iter().all(|path| !path.is_empty()) && paths.windows(2).all(|w| w[0] == w[1]),
+        "the three conditions should share one arm, got {paths:?}"
+    );
+    assert!(
+        !candidate
+            .profile
+            .relationships
+            .iter()
+            .any(|relationship| relationship.input_id == "EXCLUSION_FLAG"),
+        "a negated guard must not become a reason to select its input"
+    );
+    assert!(
+        candidate
+            .profile
+            .inputs
+            .iter()
+            .any(|input| input.id == "EXCLUSION_FLAG"),
+        "the negated input is still declared, and will read as inert"
+    );
+    assert!(
+        candidate
+            .diagnostics
+            .iter()
+            .any(|diagnostic| { diagnostic.code == "negated_condition_creates_no_requirement" })
+    );
     assert!(candidate.evidence.iter().any(|evidence| {
         evidence.path == "clinical/decision_rules.yaml"
             && evidence.pointer == "/rules/0/conditions/all_of/1"
-            && evidence.target_field
-                == "/relationships/STAGE_GROUP->ADVANCED_DRIVER_TARGETED_THERAPY"
+            && evidence
+                .target_field
+                .starts_with("/relationships/STAGE_GROUP->ADVANCED_DRIVER_TARGETED_THERAPY")
     }));
     candidate.validate().expect("candidate invariants");
 }
@@ -268,7 +305,26 @@ rules:
         forward.profile.provenance.source_artifact_ids,
         vec!["artifact-entities", "artifact-rules"]
     );
-    assert_eq!(forward.profile.relationships.len(), 4);
+    // Rule one needs PDL1 and EGFR together; rule two needs EGFR alone. Both
+    // cover targeted_therapy, so it has two distinct arms — five relationships,
+    // not four. Collapsing them would assert that EGFR alone satisfies the
+    // first rule, which the document does not say.
+    assert_eq!(forward.profile.relationships.len(), 5);
+    let targeted_paths: Vec<_> = forward
+        .profile
+        .relationships
+        .iter()
+        .filter(|relationship| relationship.outcome_id == "targeted_therapy")
+        .map(|relationship| relationship.path.as_str())
+        .collect();
+    assert_eq!(
+        targeted_paths
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        2,
+        "targeted_therapy should keep two ways of being covered, got {targeted_paths:?}"
+    );
 }
 
 #[test]

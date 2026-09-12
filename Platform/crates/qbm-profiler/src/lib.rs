@@ -7,6 +7,7 @@
 //! Projection is limited to an explicit profile document or a deliberately
 //! small structured biomedical heuristic, and every result requires review.
 
+mod conditions;
 mod project;
 mod validation;
 

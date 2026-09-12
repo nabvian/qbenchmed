@@ -511,7 +511,9 @@ struct PendingDiagnostic {
 struct ScanState {
     inputs: BTreeMap<String, Vec<EntityObservation>>,
     outcomes: BTreeMap<String, Vec<EntityObservation>>,
-    relationships: BTreeMap<(String, String), BTreeSet<SourcePoint>>,
+    /// Keyed by `(input, outcome, arm path)`: one rule's conditions form one
+    /// arm, so the same pair can legitimately appear under several paths.
+    relationships: BTreeMap<(String, String, String), BTreeSet<SourcePoint>>,
     contexts: Vec<ContextObservation>,
     profile_ids: Vec<TextObservation>,
     titles: Vec<TextObservation>,
@@ -815,6 +817,7 @@ fn scan_rule_container(
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)] // Reading one rule end to end is what makes its projection auditable.
 fn scan_rule(
     rule: &Map<String, Value>,
     pointer: &str,
@@ -837,14 +840,41 @@ fn scan_rule(
         return Ok(());
     };
 
-    let mut inputs = Vec::new();
-    collect_condition_inputs(
-        conditions,
-        &join_pointer(pointer, "conditions"),
-        document,
-        state,
-        &mut inputs,
-    );
+    // The conditions of one rule hold together, so they describe one arm of
+    // the outcome, not one independent edge each.
+    let condition_pointer = join_pointer(pointer, "conditions");
+    let dnf = {
+        let mut resolve =
+            |value: &Value, node_pointer: &str, doc: &SourceDocument, strings_are_atoms: bool| {
+                resolve_condition_inputs(value, node_pointer, doc, state, strings_are_atoms)
+            };
+        crate::conditions::condition_dnf(
+            conditions,
+            &condition_pointer,
+            document,
+            limits,
+            CONDITION_INPUT_KEYS,
+            &mut resolve,
+        )
+    };
+    if dnf.truncated {
+        state.diagnostic(
+            "rule_arms_truncated",
+            DiagnosticSeverity::Warning,
+            "Stopped expanding this rule's alternatives at the arm limit; the projected profile describes fewer ways to cover the outcome than the document does",
+            "/relationships",
+            vec![SourcePoint::new(document, &condition_pointer)],
+        );
+    }
+    if dnf.skipped_negation {
+        state.diagnostic(
+            "negated_condition_creates_no_requirement",
+            DiagnosticSeverity::Info,
+            "A negated guard is satisfied when its input is absent, so it was recorded as creating no reason to select that input",
+            "/relationships",
+            vec![SourcePoint::new(document, &condition_pointer)],
+        );
+    }
     let mut outcomes = Vec::new();
     let mut keys: Vec<_> = rule
         .keys()
@@ -861,13 +891,17 @@ fn scan_rule(
             &mut outcomes,
         );
     }
-    inputs.sort();
-    inputs.dedup();
     outcomes.sort();
     outcomes.dedup();
 
     let rule_point = SourcePoint::new(document, pointer);
-    if inputs.is_empty() {
+    let negated_inputs = dnf.negated_inputs.clone();
+    let arms: Vec<_> = dnf
+        .arms
+        .into_iter()
+        .filter(|arm| !arm.inputs.is_empty())
+        .collect();
+    if arms.is_empty() {
         state.diagnostic(
             "rule_without_supported_input",
             DiagnosticSeverity::Warning,
@@ -888,12 +922,94 @@ fn scan_rule(
         return Ok(());
     }
 
-    add_rule_relationships(&inputs, &outcomes, state, limits)
+    // An input named only inside a negated guard is still an input the rule
+    // set refers to. Declaring it keeps the profile honest about what the
+    // source mentions, and it reads as inert because nothing needs it.
+    for (id, node_pointer) in &negated_inputs {
+        let point = SourcePoint::new(document, node_pointer);
+        state
+            .inputs
+            .entry(id.clone())
+            .or_default()
+            .push(EntityObservation {
+                id_point: point.clone(),
+                label: None,
+                number: None,
+                tags: Vec::new(),
+            });
+        state.mark_used(&point);
+    }
+
+    let ordinal = state.rules_seen;
+    for (arm_index, arm) in arms.iter().enumerate() {
+        // A single-input arm is indistinguishable from a plain incidence edge,
+        // so it keeps the empty path. A profile whose rules each test one thing
+        // therefore projects exactly as it used to.
+        let path = if arm.inputs.len() > 1 {
+            format!("r{ordinal}a{arm_index}")
+        } else {
+            String::new()
+        };
+        let inputs: Vec<_> = arm
+            .inputs
+            .iter()
+            .map(|(id, node_pointer)| (id.clone(), SourcePoint::new(document, node_pointer)))
+            .collect();
+        add_rule_relationships(&inputs, &outcomes, &path, state, limits)?;
+    }
+    Ok(())
+}
+
+/// Input identities one condition node names directly.
+///
+/// Narrow on purpose: an explicit condition-input key, or an expression in the
+/// tiny comparison grammar. Anything else resolves to nothing rather than being
+/// guessed at, which is what keeps an operator name or a comment from becoming
+/// a biomedical input.
+fn resolve_condition_inputs(
+    value: &Value,
+    pointer: &str,
+    document: &SourceDocument,
+    state: &mut ScanState,
+    strings_are_atoms: bool,
+) -> Vec<(String, String)> {
+    let mut found = Vec::new();
+    match value {
+        Value::Object(object) => {
+            let mut keys: Vec<_> = object.keys().collect();
+            keys.sort_unstable();
+            for key in keys {
+                if !CONDITION_INPUT_KEYS.contains(&key.as_str()) {
+                    continue;
+                }
+                let child_pointer = join_pointer(pointer, key);
+                for (id, point) in structured_ids(
+                    &object[key],
+                    &child_pointer,
+                    document,
+                    state,
+                    "condition input",
+                ) {
+                    found.push((id, point.pointer));
+                }
+            }
+        }
+        Value::String(expression) if strings_are_atoms => {
+            if let Some(id) = condition_expression_input_id(expression) {
+                found.push((id.to_owned(), pointer.to_owned()));
+            }
+        }
+        _ => {}
+    }
+    found.sort();
+    found.dedup_by(|left, right| left.0 == right.0);
+    found
 }
 
 fn add_rule_relationships(
     inputs: &[(String, SourcePoint)],
     outcomes: &[(String, SourcePoint)],
+    path: &str,
     state: &mut ScanState,
     limits: ProfilerLimits,
 ) -> Result<(), ProfilerError> {
@@ -923,7 +1039,7 @@ fn add_rule_relationships(
             state.mark_used(outcome_point);
             let evidence = state
                 .relationships
-                .entry((input_id.clone(), outcome_id.clone()))
+                .entry((input_id.clone(), outcome_id.clone(), path.to_owned()))
                 .or_default();
             evidence.insert(input_point.clone());
             evidence.insert(outcome_point.clone());
@@ -936,88 +1052,6 @@ fn add_rule_relationships(
         }
     }
     Ok(())
-}
-
-fn collect_condition_inputs(
-    value: &Value,
-    pointer: &str,
-    document: &SourceDocument,
-    state: &mut ScanState,
-    output: &mut Vec<(String, SourcePoint)>,
-) {
-    collect_condition_inputs_inner(value, pointer, document, state, output, true);
-}
-
-fn collect_condition_inputs_inner(
-    value: &Value,
-    pointer: &str,
-    document: &SourceDocument,
-    state: &mut ScanState,
-    output: &mut Vec<(String, SourcePoint)>,
-    allow_string_atom: bool,
-) {
-    match value {
-        Value::Array(items) => {
-            for (index, item) in items.iter().enumerate() {
-                let item_pointer = join_pointer(pointer, &index.to_string());
-                match (allow_string_atom, item) {
-                    (true, Value::String(expression)) => {
-                        collect_condition_expression(expression, &item_pointer, document, output);
-                    }
-                    _ => collect_condition_inputs_inner(
-                        item,
-                        &item_pointer,
-                        document,
-                        state,
-                        output,
-                        allow_string_atom,
-                    ),
-                }
-            }
-        }
-        Value::Object(object) => {
-            let mut keys: Vec<_> = object.keys().collect();
-            keys.sort_unstable();
-            for key in keys {
-                let child_pointer = join_pointer(pointer, key);
-                if CONDITION_INPUT_KEYS.contains(&key.as_str()) {
-                    output.extend(structured_ids(
-                        &object[key],
-                        &child_pointer,
-                        document,
-                        state,
-                        "condition input",
-                    ));
-                    continue;
-                }
-                let grouped_condition =
-                    matches!(key.as_str(), "all_of" | "any_of" | "and" | "not" | "or");
-                collect_condition_inputs_inner(
-                    &object[key],
-                    &child_pointer,
-                    document,
-                    state,
-                    output,
-                    grouped_condition,
-                );
-            }
-        }
-        Value::String(expression) if allow_string_atom => {
-            collect_condition_expression(expression, pointer, document, output);
-        }
-        _ => {}
-    }
-}
-
-fn collect_condition_expression(
-    expression: &str,
-    pointer: &str,
-    document: &SourceDocument,
-    output: &mut Vec<(String, SourcePoint)>,
-) {
-    if let Some(input_id) = condition_expression_input_id(expression) {
-        output.push((input_id.to_owned(), SourcePoint::new(document, pointer)));
-    }
 }
 
 /// Extract only the identifier from a deliberately tiny, non-executing
@@ -1223,13 +1257,20 @@ fn build_collections(
     let relationships = scan
         .relationships
         .iter()
-        .map(|((input_id, outcome_id), points)| {
-            let target = relationship_target(input_id, outcome_id);
+        .map(|((input_id, outcome_id, path), points)| {
+            let target = relationship_target(input_id, outcome_id, path);
             builder.extracted_fields.insert(target.clone());
             builder.add_evidence(&target, &points.iter().cloned().collect::<Vec<_>>());
-            // The conservative heuristic only ever observes plain incidence,
-            // so it emits the disjunctive shape and never invents an arm.
-            IncidenceRelationship::supporting(input_id.clone(), outcome_id.clone())
+            // Each rule's conditions became one arm. The path carries that
+            // grouping through, so an outcome that needs two inputs together
+            // still needs them together after projection.
+            IncidenceRelationship {
+                input_id: input_id.clone(),
+                outcome_id: outcome_id.clone(),
+                path: path.clone(),
+                kind: qbm_benchmark::RelationshipKind::Supporting,
+                context_input_id: None,
+            }
         })
         .collect();
     (inputs, outcomes, relationships)
@@ -1790,11 +1831,19 @@ fn text_observation_order(left: &TextObservation, right: &TextObservation) -> Or
         .then_with(|| left.value.cmp(&right.value))
 }
 
-fn relationship_target(input_id: &str, outcome_id: &str) -> String {
+fn relationship_target(input_id: &str, outcome_id: &str, path: &str) -> String {
+    if path.is_empty() {
+        return format!(
+            "/relationships/{}->{}",
+            escape_pointer_segment(input_id),
+            escape_pointer_segment(outcome_id)
+        );
+    }
     format!(
-        "/relationships/{}->{}",
+        "/relationships/{}->{}@{}",
         escape_pointer_segment(input_id),
-        escape_pointer_segment(outcome_id)
+        escape_pointer_segment(outcome_id),
+        escape_pointer_segment(path)
     )
 }
 
