@@ -1,0 +1,19 @@
+{
+  "schema_version": "qbm-instance/1.0",
+  "instance_id": "QBM-SYN-DENSE-n40m60-s7",
+  "regime": "dense",
+  "seed": 7,
+  "n_inputs": 40,
+  "n_outcomes": 60,
+  "weight_scheme": "uniform",
+  "density": 0.59375,
+  "n_edges": 1425,
+  "outcome_degree_min": 16,
+  "outcome_degree_max": 32,
+  "outcome_degree_mean": 23.75,
+  "n_unreachable_outcomes": 0,
+  "input_degree_mean": 35.625,
+  "mean_pairwise_overlap": 0.423206,
+  "checksum": "4d67fe680b397548",
+  "notes": "synthetic instance, regime=dense"
+}

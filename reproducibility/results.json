@@ -1,0 +1,115 @@
+{
+  "flagship": {
+    "n_inputs": 66,
+    "n_outcomes": 88,
+    "min_inputs_for_full_coverage": 17,
+    "coverage_at_budget_10": 0.8977,
+    "ilp_runtime_ms_range": [
+      0.5,
+      39.2
+    ],
+    "every_point_certified_optimal": true,
+    "budget_range_swept": [
+      1,
+      66
+    ],
+    "greedy_matches_optimum_below_saturation": 0.375,
+    "greedy_matches_optimum_whole_sweep": 0.833
+  },
+  "discriminating_power": {
+    "instances": 630,
+    "greedy_optimal_overall": 0.86,
+    "greedy_optimal_by_regime": {
+      "clustered": 0.771,
+      "degree_capped": 0.714,
+      "dense": 1.0,
+      "high_overlap": 0.914,
+      "low_overlap": 0.981,
+      "sparse": 0.781
+    },
+    "hardest_cell": {
+      "regime": "degree_capped",
+      "budget_fraction": 0.4,
+      "greedy_optimal": 0.2
+    }
+  },
+  "head_to_head": {
+    "qubit_range": [
+      10,
+      19
+    ],
+    "qaoa_reaches_optimum_by_depth": {
+      "1": 0.6,
+      "2": 0.68,
+      "3": 0.7
+    },
+    "qaoa_reaches_optimum_by_size": {
+      "8": 0.967,
+      "10": 0.933,
+      "12": 0.733,
+      "14": 0.4,
+      "16": 0.267
+    },
+    "classical_reaches_optimum": {
+      "annealing (qubo)": 0.92,
+      "exhaustive (qubo)": 1.0,
+      "greedy (native)": 0.66,
+      "tabu (qubo)": 0.98
+    },
+    "optimum_mass_enrichment_median": 2.24,
+    "optimum_mass_enrichment_range": [
+      0.012,
+      93.7
+    ],
+    "runs_at_or_below_chance_fraction": 0.24,
+    "two_qubit_gates_by_depth": {
+      "1": 214,
+      "2": 428,
+      "3": 642
+    }
+  },
+  "penalty_landscape": {
+    "penalty_dominance_by_size": {
+      "8": 85.1,
+      "10": 214.9,
+      "12": 237.9,
+      "14": 264.6,
+      "16": 373.8
+    },
+    "negative_energy_fraction_by_size": {
+      "8": 0.0898,
+      "10": 0.047,
+      "12": 0.0484,
+      "14": 0.0494,
+      "16": 0.0284
+    },
+    "useful_span_percent_of_spectrum": {
+      "8": 0.914,
+      "10": 0.381,
+      "12": 0.36,
+      "14": 0.333,
+      "16": 0.236
+    }
+  },
+  "noise": {
+    "sweep_points": 315,
+    "trajectories_per_point": 1500,
+    "degradation_at_1pct_depolarizing": {
+      "measurement_error": 5.2,
+      "single_qubit_error": 10.0,
+      "two_qubit_error": 85.1
+    },
+    "ideal_mean_energy_by_depth": {
+      "1": 191.0,
+      "2": 225.1,
+      "3": 210.3
+    },
+    "dephasing_invisible_at_depth_1": true,
+    "fully_resolved_two_qubit_rate": 0.01,
+    "resolved_fraction_at_smallest_rate": 0.778,
+    "discarded_sweep": "noise_sweep_INVALID_phasebug.csv -- see REPORT.md"
+  },
+  "tests": {
+    "passing": 262
+  }
+}

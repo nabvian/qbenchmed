@@ -1,0 +1,82 @@
+benchmark_id: QBMED-HEME-001
+schema_version: "1.0"
+domain: hematology
+
+# The flagship instance is a SYNTHETIC STAND-IN for the 66x88 pathology
+# knowledge export described in the specification. That export is not present
+# in this workspace, so the instance is generated with a structure matched to
+# its declared shape. It carries no clinical content and no patient data. When
+# the real export becomes available it replaces this block; nothing downstream
+# of `instance:` needs to change.
+instance:
+  n_inputs: 66
+  n_outcomes: 88
+  generator: heme_shaped
+  seed: 42
+  provenance: synthetic_stand_in
+  real_export_present: false
+
+optimization:
+  objective: maximum_outcome_coverage
+  budget_sense: at_most          # at_most | exactly | at_least
+  input_budget: null             # swept 1..66 for the coverage curve
+  outcome_weighting: uniform
+  input_costs: uniform
+
+encoding:
+  # Two QUBO encodings of the same problem, both tested for exact agreement
+  # with the native formulation on small instances.
+  default: pairwise
+  available: [slack, pairwise, penalty]
+  penalty_coefficient: safe_bound   # conservative; see qbm.qubo.penalty_bound
+
+algorithms:
+  classical:
+    - exhaustive          # ground truth, QUBO formulation
+    - ilp                 # HiGHS, native formulation, certified optimum
+    - greedy              # native formulation, reported separately
+    - annealing           # QUBO formulation
+    - tabu                # QUBO formulation
+  quantum:
+    - qaoa
+
+qaoa:
+  depths: [1, 2, 3]
+  mixer: transverse_field
+  optimizer: COBYLA
+  restarts: 3
+  shots: 4096
+
+# The head-to-head runs on the simulable size ladder, not on the flagship:
+# the flagship's exact QUBO needs ~154+ qubits and cannot be state-vector
+# simulated. See REPORT.md section "What is and is not simulable".
+head_to_head:
+  regime: degree_capped
+  sizes: [8, 10, 12, 14, 16]
+  budget_fraction: 0.4
+  instance_seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+noise:
+  n_inputs: 12                 # single size; the sweep is over noise, not scale
+  mechanisms: [single_qubit_error, two_qubit_error, measurement_error]
+  channels: [depolarizing, dephasing]
+  rates: [0.0, 0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+  trajectories: 1500
+  instance_seeds: [0, 1, 2]
+  # One mechanism/channel is swept at a time from an otherwise-ideal model, so
+  # an observed effect is attributable to a mechanism rather than to "noise".
+  isolation: one_channel_at_a_time
+  # Variational parameters are optimized once against the IDEAL objective and
+  # then held fixed across the sweep. Re-optimizing per noise level would
+  # answer a different question (noise-aware training) and would mask the
+  # degradation this experiment exists to measure.
+  parameter_policy: frozen_ideal
+
+execution:
+  random_seed: 42
+
+# Scope limits carried with the benchmark so they travel with the results.
+claims_policy:
+  quantum_advantage: not_claimed
+  clinical_validity: not_claimed
+  wall_clock_ranking: forbidden_across_families

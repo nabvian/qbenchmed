@@ -1,0 +1,23 @@
+[package]
+name = "qbm-app"
+description = "Application services shared by Q-BenchMed Platform clients"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+qbm-adapter = { version = "0.1.0", path = "../qbm-adapter" }
+qbm-audit = { version = "0.1.0", path = "../qbm-audit" }
+qbm-domain = { version = "0.1.0", path = "../qbm-domain" }
+qbm-intake = { version = "0.1.0", path = "../qbm-intake" }
+qbm-store = { version = "0.1.0", path = "../qbm-store" }
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

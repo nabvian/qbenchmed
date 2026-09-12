@@ -1,0 +1,4 @@
+encoding,n_trials,recovery_rate,feasible_rate,mean_rel_gap,max_rel_gap,mean_vars
+pairwise,42,1.0,1.0,0.0,0.0,8.0
+penalty,90,0.07777777777777778,0.4777777777777778,0.1737,0.6667,14.0
+slack,74,1.0,1.0,0.0,0.0,18.0541

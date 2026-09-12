@@ -1,0 +1,59 @@
+[workspace]
+members = [
+    "apps/qbm-cli",
+    "crates/qbm-adapter",
+    "crates/qbm-app",
+    "crates/qbm-canonical",
+    "crates/qbm-domain",
+    "crates/qbm-audit",
+    "crates/qbm-benchmark",
+    "crates/qbm-intake",
+    "crates/qbm-profiler",
+    "crates/qbm-quantum",
+    "crates/qbm-store",
+    "crates/qbm-web",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+chrono = { version = "0.4.44", default-features = false, features = ["clock", "serde", "std"] }
+axum = { version = "0.8.9", features = ["multipart"] }
+bytes = "1.11.1"
+clap = { version = "4.6.1", features = ["derive"] }
+hex = "0.4.3"
+flate2 = "1.1.9"
+futures-util = "0.3.32"
+libc = "0.2.189"
+proc-macro2 = { version = "1.0.106", features = ["span-locations"] }
+quote = "1.0.45"
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "stream"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+sha2 = "0.10.9"
+serde_yaml = "0.9.34"
+syn = { version = "2.0.117", features = ["full", "parsing"] }
+tempfile = "3.27.0"
+tar = "0.4.45"
+thiserror = "2.0.18"
+tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+toml = "0.8.23"
+tower = { version = "0.5.3", features = ["util"] }
+uuid = { version = "1.23.1", features = ["serde", "v4"] }
+zip = { version = "=7.2.0", default-features = false, features = ["deflate"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+needless_pass_by_value = "allow"

@@ -1,0 +1,19 @@
+{
+  "schema_version": "qbm-instance/1.0",
+  "instance_id": "QBM-SYN-SPARSE-n40m60-s7",
+  "regime": "sparse",
+  "seed": 7,
+  "n_inputs": 40,
+  "n_outcomes": 60,
+  "weight_scheme": "uniform",
+  "density": 0.05875,
+  "n_edges": 141,
+  "outcome_degree_min": 1,
+  "outcome_degree_max": 5,
+  "outcome_degree_mean": 2.35,
+  "n_unreachable_outcomes": 0,
+  "input_degree_mean": 3.525,
+  "mean_pairwise_overlap": 0.025032,
+  "checksum": "01bee0d9d4e72725",
+  "notes": "synthetic instance, regime=sparse"
+}

@@ -1,0 +1,6 @@
+/target/
+/.qbenchmed/
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store
+

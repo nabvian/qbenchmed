@@ -1,0 +1,94 @@
+{
+  "schema_version": "qbm.benchmark-profile/v1",
+  "profile_id": "biomedical/nsclc-mini-panel",
+  "title": "NSCLC miniature demonstration panel",
+  "biomedical_scope": {
+    "area": "oncology",
+    "population": "Synthetic NSCLC demonstration cohort",
+    "input_semantics": "A selectable biomarker assay in this synthetic example",
+    "outcome_semantics": "A declared decision-support coverage target in this synthetic example"
+  },
+  "inputs": [
+    {
+      "id": "assay.alk",
+      "label": "ALK assay",
+      "cost": 1.2,
+      "tags": [
+        "genomic"
+      ]
+    },
+    {
+      "id": "assay.egfr",
+      "label": "EGFR assay",
+      "cost": 1.0,
+      "tags": [
+        "genomic"
+      ]
+    },
+    {
+      "id": "assay.pdl1",
+      "label": "PD-L1 assay",
+      "cost": 0.8,
+      "tags": [
+        "expression"
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "target.alk",
+      "label": "ALK target covered",
+      "weight": 1.0,
+      "tags": [
+        "therapy"
+      ]
+    },
+    {
+      "id": "target.egfr",
+      "label": "EGFR target covered",
+      "weight": 1.4,
+      "tags": [
+        "therapy"
+      ]
+    },
+    {
+      "id": "target.immune",
+      "label": "Immune-therapy evidence target covered",
+      "weight": 0.7,
+      "tags": [
+        "therapy"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "input_id": "assay.alk",
+      "outcome_id": "target.alk"
+    },
+    {
+      "input_id": "assay.egfr",
+      "outcome_id": "target.egfr"
+    },
+    {
+      "input_id": "assay.pdl1",
+      "outcome_id": "target.immune"
+    }
+  ],
+  "constraints": {
+    "min_selected": 1,
+    "max_selected": 2,
+    "max_total_cost": null,
+    "required_inputs": [],
+    "excluded_inputs": [],
+    "required_outcomes": []
+  },
+  "objective": "maximize_weighted_coverage",
+  "provenance": {
+    "generated_by": "qbenchmed-example-exporter/v1",
+    "source_revision": "synthetic-v1",
+    "source_artifact_ids": [
+      "example:nsclc-mini:synthetic-v1"
+    ],
+    "projection_method": "explicit synthetic profile for documentation"
+  }
+}

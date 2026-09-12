@@ -1,0 +1,35 @@
+{
+  "python": "3.13.15",
+  "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+  "numpy": "2.5.2",
+  "regimes": [
+    "low_overlap",
+    "high_overlap",
+    "clustered",
+    "sparse",
+    "dense",
+    "degree_capped"
+  ],
+  "sizes": [
+    10,
+    16,
+    22,
+    30,
+    40,
+    50,
+    66
+  ],
+  "k_fracs": [
+    0.15,
+    0.25,
+    0.4
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "total_runtime_s": 10.3
+}

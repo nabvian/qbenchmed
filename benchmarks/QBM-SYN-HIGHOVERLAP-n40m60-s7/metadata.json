@@ -1,0 +1,19 @@
+{
+  "schema_version": "qbm-instance/1.0",
+  "instance_id": "QBM-SYN-HIGHOVERLAP-n40m60-s7",
+  "regime": "high_overlap",
+  "seed": 7,
+  "n_inputs": 40,
+  "n_outcomes": 60,
+  "weight_scheme": "uniform",
+  "density": 0.355,
+  "n_edges": 852,
+  "outcome_degree_min": 7,
+  "outcome_degree_max": 21,
+  "outcome_degree_mean": 14.2,
+  "n_unreachable_outcomes": 0,
+  "input_degree_mean": 21.3,
+  "mean_pairwise_overlap": 0.213418,
+  "checksum": "8db6a522a4657f21",
+  "notes": "synthetic instance, regime=high_overlap"
+}

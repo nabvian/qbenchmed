@@ -1,0 +1,10 @@
+[project]
+name = "qbenchmed"
+version = "0.1.0"
+description = "Reproducible benchmarking of quantum and classical optimization on structured biomedical problems"
+requires-python = ">=3.11"
+dependencies = ["numpy", "scipy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

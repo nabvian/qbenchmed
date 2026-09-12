@@ -1,0 +1,19 @@
+{
+  "schema_version": "qbm-instance/1.0",
+  "instance_id": "QBM-SYN-CLUSTERED-n40m60-s7",
+  "regime": "clustered",
+  "seed": 7,
+  "n_inputs": 40,
+  "n_outcomes": 60,
+  "weight_scheme": "uniform",
+  "density": 0.117917,
+  "n_edges": 283,
+  "outcome_degree_min": 1,
+  "outcome_degree_max": 9,
+  "outcome_degree_mean": 4.7167,
+  "n_unreachable_outcomes": 0,
+  "input_degree_mean": 7.075,
+  "mean_pairwise_overlap": 0.069557,
+  "checksum": "1e411b1a041bc6d2",
+  "notes": "synthetic instance, regime=clustered"
+}

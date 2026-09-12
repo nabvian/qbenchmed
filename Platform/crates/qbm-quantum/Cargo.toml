@@ -1,0 +1,21 @@
+[package]
+name = "qbm-quantum"
+description = "Provider-neutral quantum execution contracts for Q-BenchMed"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+qbm-benchmark = { version = "0.1.0", path = "../qbm-benchmark" }
+qbm-canonical = { version = "0.1.0", path = "../qbm-canonical" }
+qbm-domain = { version = "0.1.0", path = "../qbm-domain" }
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,213 @@
+{
+  "schema_version": "qbm.adapter-package/v1",
+  "manifest": {
+    "schema_version": "qbm.adapter-manifest/v1",
+    "adapter_api_version": "qbm.adapter-api/v1",
+    "id": "generic-manifest",
+    "version": "1.0.0",
+    "display_name": "Generic Manifest",
+    "description": "Maps named definitions and explicit references found in structured JSON, YAML, and TOML into a small domain-neutral semantic graph.",
+    "minimum_platform_schema": "qbm.domain/v1",
+    "capabilities": [
+      "raw_graph_read",
+      "emit_semantic_nodes",
+      "emit_semantic_edges",
+      "emit_findings",
+      "emit_projections"
+    ],
+    "license": "Apache-2.0"
+  },
+  "detection": [
+    {
+      "id": "structured-definition",
+      "description": "Recognizes a structured object that the generic scanner marked as a named definition.",
+      "selector": {
+        "formats": [
+          "json",
+          "yaml",
+          "toml"
+        ],
+        "kinds": [
+          "object"
+        ],
+        "path_prefixes": [],
+        "path_suffixes": [],
+        "labels": [],
+        "identifiers": [],
+        "identifier_required": true,
+        "definition": true
+      },
+      "minimum_matches": 1,
+      "weight": 100,
+      "required": true
+    }
+  ],
+  "mappings": {
+    "schema_version": "qbm.mapping-pack/v1",
+    "nodes": [
+      {
+        "id": "definition-node",
+        "selector": {
+          "formats": [
+            "json",
+            "yaml",
+            "toml"
+          ],
+          "kinds": [
+            "object"
+          ],
+          "path_prefixes": [],
+          "path_suffixes": [],
+          "labels": [],
+          "identifiers": [],
+          "identifier_required": true,
+          "definition": true
+        },
+        "semantic_type": "generic-manifest::definition",
+        "identity_source": "identifier",
+        "attributes": [
+          {
+            "target": "declared_id",
+            "value": {
+              "source": "identifier"
+            },
+            "required": true
+          },
+          {
+            "target": "source_path",
+            "value": {
+              "source": "relative_path"
+            },
+            "required": true
+          },
+          {
+            "target": "source_pointer",
+            "value": {
+              "source": "pointer"
+            },
+            "required": false
+          },
+          {
+            "target": "classification",
+            "value": {
+              "source": "literal",
+              "value": "generic_definition"
+            },
+            "required": true
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "id": "definition-reference",
+        "raw_kinds": [
+          "references"
+        ],
+        "from_semantic_type": "generic-manifest::definition",
+        "to_semantic_type": "generic-manifest::definition",
+        "relation_type": "generic-manifest::references"
+      }
+    ]
+  },
+  "policies": {
+    "schema_version": "qbm.semantic-policy-pack/v1",
+    "rules": [
+      {
+        "id": "forbid-self-reference",
+        "severity": "warning",
+        "title": "Definition references itself",
+        "description": "A direct self-reference often indicates an accidental cycle or an incorrectly resolved identifier.",
+        "remediation": "Review the explicit reference and point it to the intended definition, or document and model the recursion explicitly.",
+        "assertion": {
+          "assertion": "forbid_self_relation",
+          "relation_type": "generic-manifest::references"
+        }
+      }
+    ]
+  },
+  "projections": [
+    {
+      "id": "definition-network",
+      "display_name": "Definition Network",
+      "description": "Named generic definitions and the explicit references resolved between them.",
+      "semantic_types": [
+        "generic-manifest::definition"
+      ],
+      "relation_types": [
+        "generic-manifest::references"
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "self-reference",
+      "nodes": [
+        {
+          "key": "loop-rule",
+          "kind": "object",
+          "format": "json",
+          "label": "loop-rule",
+          "identifier": "loop-rule",
+          "is_definition": true,
+          "relative_path": "rules.json",
+          "pointer": "/rules/loop-rule",
+          "properties": {},
+          "evidence_value": null
+        }
+      ],
+      "edges": [
+        {
+          "from": "loop-rule",
+          "to": "loop-rule",
+          "kind": "references",
+          "reference": "loop-rule"
+        }
+      ],
+      "expect": {
+        "detection_eligible": true,
+        "minimum_confidence_bps": 10000,
+        "semantic_type_counts": {
+          "generic-manifest::definition": 1
+        },
+        "semantic_relation_counts": {
+          "generic-manifest::references": 1
+        },
+        "finding_codes": [
+          "generic-manifest::forbid-self-reference"
+        ],
+        "projection_availability": {
+          "definition-network": true
+        }
+      }
+    },
+    {
+      "id": "unrelated-text-file",
+      "nodes": [
+        {
+          "key": "readme",
+          "kind": "file",
+          "format": "unknown",
+          "label": "README.txt",
+          "identifier": null,
+          "is_definition": false,
+          "relative_path": "README.txt",
+          "pointer": null,
+          "properties": {},
+          "evidence_value": null
+        }
+      ],
+      "edges": [],
+      "expect": {
+        "detection_eligible": false,
+        "minimum_confidence_bps": 0,
+        "semantic_type_counts": {},
+        "semantic_relation_counts": {},
+        "finding_codes": [],
+        "projection_availability": {
+          "definition-network": false
+        }
+      }
+    }
+  ]
+}

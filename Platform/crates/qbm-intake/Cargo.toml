@@ -1,0 +1,25 @@
+[package]
+name = "qbm-intake"
+description = "Safe deterministic project intake and immutable source snapshots"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+flate2.workspace = true
+libc.workspace = true
+qbm-canonical = { version = "0.1.0", path = "../qbm-canonical" }
+qbm-domain = { version = "0.1.0", path = "../qbm-domain" }
+qbm-store = { version = "0.1.0", path = "../qbm-store" }
+serde.workspace = true
+tar.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

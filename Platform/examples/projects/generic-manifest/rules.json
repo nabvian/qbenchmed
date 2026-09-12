@@ -1,0 +1,8 @@
+{
+  "definitions": {
+    "loop-rule": {
+      "id": "loop-rule",
+      "ref": "loop-rule"
+    }
+  }
+}

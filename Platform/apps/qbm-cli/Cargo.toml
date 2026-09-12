@@ -1,0 +1,24 @@
+[package]
+name = "qbm-cli"
+description = "Command-line interface for Q-BenchMed Platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "qbm"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+qbm-app = { version = "0.1.0", path = "../../crates/qbm-app" }
+qbm-domain = { version = "0.1.0", path = "../../crates/qbm-domain" }
+qbm-web = { version = "0.1.0", path = "../../crates/qbm-web" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

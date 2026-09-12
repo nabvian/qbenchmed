@@ -1,0 +1,19 @@
+[package]
+name = "qbm-profiler"
+description = "Evidence-backed biomedical BenchmarkProfile projection for Q-BenchMed"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+qbm-benchmark = { version = "0.1.0", path = "../qbm-benchmark" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_yaml.workspace = true
+
+[lints]
+workspace = true

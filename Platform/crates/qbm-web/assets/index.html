@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Q-BenchMed — Biomedical input optimization</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="Q-BenchMed home">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span><strong>Q-BenchMed</strong><small>Quantum · classical</small></span>
+    </a>
+    <div class="service-pill" id="service-status"><span aria-hidden="true"></span> Connecting…</div>
+    <button class="quiet-button hidden" id="new-audit" type="button">New audit</button>
+  </header>
+
+  <main id="main">
+    <section class="home-shell" id="home-view" aria-labelledby="home-title">
+      <div class="intro-copy">
+        <p class="eyebrow">Rust-first · local-first · biomedical optimization</p>
+        <h1 id="home-title">Turn biomedical project evidence into an approved benchmark.</h1>
+        <p class="lede">Import a project, verify what was parsed, approve its inputs, outcomes and relationships, then compare classical and quantum-ready input-panel formulations. Source code is inspected as data and is never executed.</p>
+        <div class="trust-row" aria-label="Safety guarantees">
+          <span>✓ Runs on this computer</span>
+          <span>✓ Manual approval gates</span>
+          <span>✓ Tamper-evident history</span>
+        </div>
+      </div>
+
+      <section class="intake-card" aria-labelledby="intake-title">
+        <div class="card-heading">
+          <span class="step-badge">01</span>
+          <div><h2 id="intake-title">Choose a biomedical project source</h2><p>One source starts one immutable, approval-gated analysis run.</p></div>
+        </div>
+
+        <fieldset class="source-choices">
+          <legend class="sr-only">Source type</legend>
+          <label class="source-choice selected">
+            <input type="radio" name="source-type" value="archive" checked>
+            <span class="source-icon" aria-hidden="true">ZIP</span>
+            <span><strong>Archive</strong><small>ZIP, TAR, TAR.GZ or TGZ</small></span>
+            <span class="choice-check" aria-hidden="true">✓</span>
+          </label>
+          <label class="source-choice">
+            <input type="radio" name="source-type" value="folder">
+            <span class="source-icon folder-icon" aria-hidden="true">DIR</span>
+            <span><strong>Folder</strong><small>Choose a project folder</small></span>
+            <span class="choice-check" aria-hidden="true">✓</span>
+          </label>
+          <label class="source-choice">
+            <input type="radio" name="source-type" value="github">
+            <span class="source-icon github-icon" aria-hidden="true">GIT</span>
+            <span><strong>Public GitHub</strong><small>Repository root URL</small></span>
+            <span class="choice-check" aria-hidden="true">✓</span>
+          </label>
+        </fieldset>
+
+        <div class="source-panel" data-panel="archive">
+          <label class="drop-zone" for="archive-file" id="archive-drop">
+            <span class="upload-symbol" aria-hidden="true">↑</span>
+            <strong>Drop an archive here</strong>
+            <span>or choose a file from this computer</span>
+            <span class="file-button">Choose archive</span>
+            <input id="archive-file" type="file" accept=".zip,.tar,.tar.gz,.tgz,application/zip" required>
+          </label>
+          <div class="selected-file hidden" id="archive-selected"></div>
+        </div>
+
+        <div class="source-panel hidden" data-panel="folder">
+          <label class="drop-zone compact" for="folder-files">
+            <span class="upload-symbol" aria-hidden="true">⌁</span>
+            <strong>Choose a project folder</strong>
+            <span>The browser will preserve its relative file paths.</span>
+            <span class="file-button">Choose folder</span>
+            <input id="folder-files" type="file" webkitdirectory multiple>
+          </label>
+          <div class="selected-file hidden" id="folder-selected"></div>
+          <p class="field-hint">If folder selection is unavailable in your browser, create a ZIP and use Archive.</p>
+        </div>
+
+        <div class="source-panel hidden" data-panel="github">
+          <label class="field-label" for="github-url">Public repository URL</label>
+          <input class="text-input" id="github-url" type="url" placeholder="https://github.com/owner/repository" autocomplete="url" spellcheck="false">
+          <p class="field-hint">Repository root only. Private repositories and tokens are not accepted in this release.</p>
+          <label class="field-label" for="github-ref">Branch, tag, or commit <span>optional</span></label>
+          <input class="text-input" id="github-ref" type="text" placeholder="Default branch" autocomplete="off" spellcheck="false" maxlength="255">
+        </div>
+
+        <div class="common-fields">
+          <div>
+            <label class="field-label" for="project-name">Project name <span>optional</span></label>
+            <input class="text-input" id="project-name" type="text" placeholder="Filled from your source" maxlength="160">
+          </div>
+          <div>
+            <label class="field-label" for="reviewer-name">Reviewer label</label>
+            <input class="text-input" id="reviewer-name" type="text" value="local-reviewer" maxlength="64" autocomplete="nickname">
+          </div>
+        </div>
+
+        <div class="inline-alert hidden" id="home-error" role="alert" tabindex="-1"></div>
+        <button class="primary-button start-button" id="start-audit" type="button">
+          <span>Start governed analysis</span><span aria-hidden="true">→</span>
+        </button>
+        <p class="privacy-note"><span aria-hidden="true">⌾</span> Uploads stay inside the Q-BenchMed data directory on this computer. A GitHub URL downloads one public commit archive.</p>
+      </section>
+
+      <section class="recent-section hidden" id="recent-section" aria-labelledby="recent-title">
+        <div class="section-heading"><div><p class="eyebrow">Continue where you left off</p><h2 id="recent-title">Recent audits</h2></div></div>
+        <div class="recent-grid" id="recent-runs"></div>
+      </section>
+    </section>
+
+    <section class="processing-view hidden" id="processing-view" aria-labelledby="processing-title">
+      <div class="processing-orbit" aria-hidden="true"><span></span></div>
+      <p class="eyebrow">Safe source acquisition</p>
+      <h1 id="processing-title">Preparing your audit</h1>
+      <p id="processing-phase" role="status" aria-live="polite">Validating the selected source…</p>
+      <div class="phase-list" aria-label="Processing phases">
+        <span class="active">1 <b>Acquire</b></span><i></i><span>2 <b>Inventory</b></span><i></i><span>3 <b>Review</b></span>
+      </div>
+    </section>
+
+    <section class="workspace hidden" id="workspace-view" aria-labelledby="workspace-title">
+      <header class="run-header">
+        <div>
+          <p class="eyebrow" id="run-source-kind">Source audit</p>
+          <h1 id="workspace-title">Project audit</h1>
+          <p id="run-meta"></p>
+        </div>
+        <div class="run-header-actions">
+          <span class="run-status" id="run-status"></span>
+          <button class="quiet-button" id="copy-run-id" type="button">Copy run ID</button>
+        </div>
+      </header>
+
+      <div class="workspace-grid">
+        <aside class="timeline-panel" aria-labelledby="timeline-title">
+          <div class="timeline-heading"><p class="eyebrow">Governed workflow</p><h2 id="timeline-title">Audit stages</h2></div>
+          <ol class="stage-list" id="stage-list"></ol>
+          <div class="integrity-card" id="integrity-card"><span aria-hidden="true">◇</span><div><strong>Event chain</strong><small>Verification pending</small></div></div>
+        </aside>
+
+        <section class="inspector" id="inspector"></section>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

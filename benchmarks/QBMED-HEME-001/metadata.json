@@ -1,0 +1,19 @@
+{
+  "schema_version": "qbm-instance/1.0",
+  "instance_id": "QBMED-HEME-001",
+  "regime": "heme_shaped",
+  "seed": 42,
+  "n_inputs": 66,
+  "n_outcomes": 88,
+  "weight_scheme": "uniform",
+  "density": 0.071281,
+  "n_edges": 414,
+  "outcome_degree_min": 1,
+  "outcome_degree_max": 20,
+  "outcome_degree_mean": 4.7045,
+  "n_unreachable_outcomes": 0,
+  "input_degree_mean": 6.2727,
+  "mean_pairwise_overlap": 0.037813,
+  "checksum": "ac646bcc253633e9",
+  "notes": "SYNTHETIC stand-in for the 66x88 pathology knowledge export. Degree structure imitates a laboratory panel; contains no clinical knowledge and supports no clinical claim. Replace incidence.csv with the real export to run the true benchmark."
+}

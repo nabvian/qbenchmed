@@ -1,0 +1,24 @@
+[package]
+name = "qbm-store"
+description = "Durable metadata, event, approval and artifact storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+qbm-canonical = { version = "0.1.0", path = "../qbm-canonical" }
+qbm-domain = { version = "0.1.0", path = "../qbm-domain" }
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
