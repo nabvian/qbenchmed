@@ -208,6 +208,7 @@ pub fn solve_max_coverage(
         problem,
         order: &order,
         limits,
+        reach_prefix: reach_prefix_sums(problem),
         decided_in: problem.forced_in.clone(),
         decided_out: problem.forbidden.clone(),
         best_selection,
@@ -219,18 +220,14 @@ pub fn solve_max_coverage(
     // Record the root bound before descending, so an exhausted search can
     // report the gap it actually left open.
     let root_budget = problem.max_selected.saturating_sub(search.decided_in.len());
-    let root_bound = upper_bound(
-        problem,
-        &search.decided_in,
-        &search.decided_out,
-        root_budget,
-    );
+    let root_bound = search.bound(root_budget);
     search.consider_current();
     search.descend(0);
 
     let selected = search.best_selection.ok_or_else(|| {
         BenchmarkError::Infeasible("no selection satisfies every declared constraint".to_owned())
     })?;
+    let selected = trim_redundant(problem, selected);
     let covered_weight = model.covered_weight(&selected);
     Ok(IlpSolution {
         selected,
@@ -245,11 +242,79 @@ pub fn solve_max_coverage(
     })
 }
 
+/// Drop inputs the answer does not need.
+///
+/// Maximum coverage is indifferent to panel size, so a certified-optimal panel
+/// can carry passengers: at a ceiling of fifty the search would return
+/// forty-two inputs for coverage that thirty-seven achieve. Both are optimal by
+/// the stated objective, but reporting the padded one invites the reader to
+/// believe those inputs are doing something.
+///
+/// Removing an input is only ever accepted when coverage does not fall and
+/// every declared constraint still holds, so the result stays exactly as
+/// optimal as the panel it came from. Removal is attempted in descending cost
+/// order, which is deterministic and sheds the most expensive passenger first.
+fn trim_redundant(problem: &IlpProblem<'_>, selected: InputSet) -> InputSet {
+    let model = problem.model;
+    let target = model.covered_weight(&selected);
+    let mut trimmed = selected;
+    let mut candidates = trimmed.indices();
+    candidates.sort_by(|left, right| {
+        model.costs[*right]
+            .total_cmp(&model.costs[*left])
+            .then(left.cmp(right))
+    });
+    for index in candidates {
+        if problem.forced_in.contains(index) {
+            continue;
+        }
+        trimmed.remove(index);
+        let still_optimal =
+            model.covered_weight(&trimmed) >= target - 1e-9 && problem.feasible(&trimmed);
+        if !still_optimal {
+            trimmed.insert(index);
+        }
+    }
+    trimmed
+}
+
+/// Descending per-input reach weights, accumulated into prefix sums.
+///
+/// `reach[i]` is the total weight of every outcome input `i` could possibly
+/// help cover. Any outcome newly covered by adding `r` inputs must have all of
+/// one arm's missing members among those `r`, so its weight is counted in at
+/// least one chosen input's reach. Summing the `r` largest reaches is therefore
+/// a valid ceiling on what `r` more inputs can add — and a far tighter one than
+/// "every outcome that is still theoretically possible", which at the root is
+/// simply the whole profile.
+fn reach_prefix_sums(problem: &IlpProblem<'_>) -> Vec<f64> {
+    let model = problem.model;
+    let mut reach = vec![0.0_f64; model.input_count];
+    for (index, rule) in model.rules.iter().enumerate() {
+        let weight = model.weights[index];
+        let mut credited = InputSet::empty(model.input_count);
+        for arm in &rule.arms {
+            credited.union_with(&arm.present_closure);
+        }
+        credited.for_each(|input| reach[input] += weight);
+    }
+    reach.sort_by(|left, right| right.total_cmp(left));
+    let mut prefix = Vec::with_capacity(reach.len() + 1);
+    let mut running = 0.0;
+    prefix.push(0.0);
+    for value in reach {
+        running += value;
+        prefix.push(running);
+    }
+    prefix
+}
+
 /// Mutable state of one depth-first certified search.
 struct Search<'a, 'p> {
     problem: &'a IlpProblem<'p>,
     order: &'a [usize],
     limits: IlpLimits,
+    reach_prefix: Vec<f64>,
     decided_in: InputSet,
     decided_out: InputSet,
     best_selection: Option<InputSet>,
@@ -269,18 +334,51 @@ impl Search<'_, '_> {
             return;
         }
         let weight = self.problem.model.covered_weight(&self.decided_in);
-        if weight > self.best_weight {
+        // Maximum coverage says nothing about panel size, so without a
+        // tie-break the search happily returns a panel padded with inputs that
+        // cover nothing. Among equally optimal panels, prefer the smaller and
+        // then the cheaper — a strictly better answer to the same question.
+        let improvement = match weight.total_cmp(&self.best_weight) {
+            std::cmp::Ordering::Greater => true,
+            std::cmp::Ordering::Equal => self.best_selection.as_ref().is_none_or(|current| {
+                let size = self.decided_in.len();
+                let best_size = current.len();
+                size < best_size
+                    || (size == best_size
+                        && self.problem.model.total_cost(&self.decided_in)
+                            < self.problem.model.total_cost(current))
+            }),
+            std::cmp::Ordering::Less => false,
+        };
+        if improvement {
             self.best_weight = weight;
             self.best_selection = Some(self.decided_in.clone());
         }
     }
 
+    /// Highest coverage weight any completion of this node could reach.
+    ///
+    /// Two independent ceilings, whichever is lower: the weight of what is
+    /// still possible at all, and what the remaining budget can physically
+    /// reach. Both over-estimate, so their minimum is still admissible.
+    fn bound(&self, budget: usize) -> f64 {
+        let model = self.problem.model;
+        let mut secured = 0.0;
+        let mut reachable = 0.0;
+        for (index, rule) in model.rules.iter().enumerate() {
+            let weight = model.weights[index];
+            if rule.covered_by(&self.decided_in) {
+                secured += weight;
+            } else if rule.still_possible(&self.decided_in, &self.decided_out, budget) {
+                reachable += weight;
+            }
+        }
+        let capacity = self.reach_prefix[budget.min(self.reach_prefix.len() - 1)];
+        secured + reachable.min(capacity)
+    }
+
     /// Whether this subtree can still beat the incumbent.
-    fn worth_exploring(&self) -> bool {
-        let budget = self
-            .problem
-            .max_selected
-            .saturating_sub(self.decided_in.len());
+    fn worth_exploring(&self, budget: usize) -> bool {
         let required_possible = self.problem.required_outcomes.iter().all(|outcome| {
             self.problem.model.rules[*outcome].still_possible(
                 &self.decided_in,
@@ -288,11 +386,7 @@ impl Search<'_, '_> {
                 budget,
             )
         });
-        if !required_possible {
-            return false;
-        }
-        upper_bound(self.problem, &self.decided_in, &self.decided_out, budget)
-            > self.best_weight + 1e-9
+        required_possible && self.bound(budget) > self.best_weight + 1e-9
     }
 
     /// Branch on the input at `position`, then on everything after it.
@@ -318,7 +412,11 @@ impl Search<'_, '_> {
                 self.exhausted = true;
             } else {
                 self.consider_current();
-                if self.worth_exploring() {
+                let budget = self
+                    .problem
+                    .max_selected
+                    .saturating_sub(self.decided_in.len());
+                if self.worth_exploring(budget) {
                     self.descend(position + 1);
                 }
             }
@@ -337,32 +435,16 @@ impl Search<'_, '_> {
             self.exhausted = true;
         } else {
             self.consider_current();
-            if self.worth_exploring() {
+            let budget = self
+                .problem
+                .max_selected
+                .saturating_sub(self.decided_in.len());
+            if self.worth_exploring(budget) {
                 self.descend(position + 1);
             }
         }
         self.decided_out.remove(index);
     }
-}
-
-/// Weight of every outcome that can still be covered from this node.
-///
-/// Admissible by construction: it credits an outcome whenever *some* completion
-/// could cover it, so it can only over-estimate.
-fn upper_bound(
-    problem: &IlpProblem<'_>,
-    decided_in: &InputSet,
-    decided_out: &InputSet,
-    budget: usize,
-) -> f64 {
-    problem
-        .model
-        .rules
-        .iter()
-        .enumerate()
-        .filter(|(_, rule)| rule.still_possible(decided_in, decided_out, budget))
-        .map(|(index, _)| problem.model.weights[index])
-        .sum()
 }
 
 /// Certified smallest panel reaching a weighted-coverage floor.

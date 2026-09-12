@@ -1,0 +1,2262 @@
+{
+  "schema_version": "qbm.benchmark-profile/v2",
+  "profile_id": "biomedical/qbmed-heme-001",
+  "title": "QBMED-HEME-001 (hematology)",
+  "biomedical_scope": {
+    "area": "hematology",
+    "population": "Not declared by the source profile",
+    "input_semantics": "A selectable measurement the rule engine can read",
+    "outcome_semantics": "A declared decision-support target the rules can fire"
+  },
+  "inputs": [
+    {
+      "id": "ALBUMIN",
+      "label": "ALBUMIN",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ALT",
+      "label": "ALT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "APTT",
+      "label": "APTT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "AST",
+      "label": "AST",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B12",
+      "label": "B12",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BASO",
+      "label": "BASO",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BILIRUBIN_INDIRECT",
+      "label": "BILIRUBIN INDIRECT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BILIRUBIN_TOTAL",
+      "label": "BILIRUBIN TOTAL",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BONE_PAIN",
+      "label": "BONE PAIN",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CALCIUM",
+      "label": "CALCIUM",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CERULOPLASMIN",
+      "label": "CERULOPLASMIN",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CREATININE",
+      "label": "CREATININE",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CRP",
+      "label": "CRP",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "DAT_COOMBS",
+      "label": "DAT COOMBS",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D_DIMER",
+      "label": "D DIMER",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "EOS",
+      "label": "EOS",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ESR",
+      "label": "ESR",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "FERRITIN",
+      "label": "FERRITIN",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "FIBRINOGEN",
+      "label": "FIBRINOGEN",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "FOLATE",
+      "label": "FOLATE",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "FT4",
+      "label": "FT4",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G6PD_ASSAY",
+      "label": "G6PD ASSAY",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HAPTOGLOBIN",
+      "label": "HAPTOGLOBIN",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HBA2",
+      "label": "HBA2",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HBF",
+      "label": "HBF",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HCT",
+      "label": "HCT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HGB",
+      "label": "HGB",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HOMOCYSTEINE",
+      "label": "HOMOCYSTEINE",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "LDH",
+      "label": "LDH",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "LYMPH",
+      "label": "LYMPH",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MCH",
+      "label": "MCH",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MCHC",
+      "label": "MCHC",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MCV",
+      "label": "MCV",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MMA",
+      "label": "MMA",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MONO",
+      "label": "MONO",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MPV",
+      "label": "MPV",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NEUT",
+      "label": "NEUT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "PLT",
+      "label": "PLT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "POTASSIUM",
+      "label": "POTASSIUM",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "PT_PROLONGATION_SEC",
+      "label": "PT PROLONGATION SEC",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "RBC",
+      "label": "RBC",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "RDW_CV",
+      "label": "RDW CV",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "RDW_SD",
+      "label": "RDW SD",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "RETIC",
+      "label": "RETIC",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "SERUM_COPPER",
+      "label": "SERUM COPPER",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "SODIUM",
+      "label": "SODIUM",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "STFR",
+      "label": "STFR",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "TIBC",
+      "label": "TIBC",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "TSAT",
+      "label": "TSAT",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "TSH",
+      "label": "TSH",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "UREA",
+      "label": "UREA",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "WBC",
+      "label": "WBC",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "basophilic_stippling",
+      "label": "basophilic stippling",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "bite_cells",
+      "label": "bite cells",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "blasts_auer_rods",
+      "label": "blasts auer rods",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "eGFR",
+      "label": "eGFR",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "howell_jolly_bodies",
+      "label": "howell jolly bodies",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "hypersegmented_neutrophils",
+      "label": "hypersegmented neutrophils",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "nucleated_rbc",
+      "label": "nucleated rbc",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "pencil_cigar_cells",
+      "label": "pencil cigar cells",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "rouleaux",
+      "label": "rouleaux",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "schistocytes",
+      "label": "schistocytes",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "sickle_cells",
+      "label": "sickle cells",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "spherocytes",
+      "label": "spherocytes",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "target_cells",
+      "label": "target cells",
+      "cost": 1.0,
+      "tags": []
+    },
+    {
+      "id": "teardrop_dacrocytes",
+      "label": "teardrop dacrocytes",
+      "cost": 1.0,
+      "tags": []
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "ACD_SUSPECT",
+      "label": "ACD SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ACUTE_LEUKAEMIA_SUSPECT",
+      "label": "ACUTE LEUKAEMIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "AGRANULOCYTOSIS_SUSPECT",
+      "label": "AGRANULOCYTOSIS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "AIHA_SUSPECT",
+      "label": "AIHA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ALPHA_TRAIT_SUSPECT",
+      "label": "ALPHA TRAIT SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ANEMIA_UNCLASSIFIED",
+      "label": "ANEMIA UNCLASSIFIED",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "APLASTIC_ANAEMIA_SUSPECT",
+      "label": "APLASTIC ANAEMIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B12_DEFICIENCY_SUSPECT",
+      "label": "B12 DEFICIENCY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BENIGN_ETHNIC_NEUTROPENIA_CONTEXT",
+      "label": "BENIGN ETHNIC NEUTROPENIA CONTEXT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BLOOD_LOSS_SUSPECT",
+      "label": "BLOOD LOSS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "BTT",
+      "label": "BTT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CANNOT_EVALUATE",
+      "label": "CANNOT EVALUATE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CANNOT_RESOLVE_ON_CBC",
+      "label": "CANNOT RESOLVE ON CBC",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CAPILLARY_SCREEN_CONFIRM_VENOUS",
+      "label": "CAPILLARY SCREEN CONFIRM VENOUS",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CLL_CLPD_SUSPECT",
+      "label": "CLL CLPD SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CML_SUSPECT",
+      "label": "CML SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "COEXISTENCE_BTT_IDA",
+      "label": "COEXISTENCE BTT IDA",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "COMPENSATED_HAEMOLYSIS_SUSPECT",
+      "label": "COMPENSATED HAEMOLYSIS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "COPPER_DEFICIENCY_SUSPECT",
+      "label": "COPPER DEFICIENCY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "CRITICAL_THROMBOCYTOPENIA",
+      "label": "CRITICAL THROMBOCYTOPENIA",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "DENGUE_SUSPECT",
+      "label": "DENGUE SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "DIC_SUSPECT",
+      "label": "DIC SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "DIMORPHIC",
+      "label": "DIMORPHIC",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "DUAL_DEFICIENCY_SUSPECT",
+      "label": "DUAL DEFICIENCY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ENTERIC_FEVER_CONTEXT",
+      "label": "ENTERIC FEVER CONTEXT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "EOSINOPHILIA_INVESTIGATE",
+      "label": "EOSINOPHILIA INVESTIGATE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "EOSINOPHILIA_SUSPECT",
+      "label": "EOSINOPHILIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "ERYTHROCYTOSIS_SUSPECT",
+      "label": "ERYTHROCYTOSIS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "FOLATE_DEFICIENCY_SUSPECT",
+      "label": "FOLATE DEFICIENCY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "FUNGAL_MARROW_SUSPECT",
+      "label": "FUNGAL MARROW SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G6PD_DEFICIENCY_SUSPECT",
+      "label": "G6PD DEFICIENCY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HAEMOLYSIS_SUSPECT",
+      "label": "HAEMOLYSIS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HBA2_EQUIVOCAL_BAND",
+      "label": "HBA2 EQUIVOCAL BAND",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HBA2_VARIANT_RANGE",
+      "label": "HBA2 VARIANT RANGE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HBPATHY_SUSPECT",
+      "label": "HBPATHY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HIT_SUSPECT",
+      "label": "HIT SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HIV_CONTEXT_FLAG",
+      "label": "HIV CONTEXT FLAG",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HLH_SUSPECT",
+      "label": "HLH SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HOOKWORM_STH_IDA_SUSPECT",
+      "label": "HOOKWORM STH IDA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HYPEREOSINOPHILIA_SUSPECT",
+      "label": "HYPEREOSINOPHILIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HYPERSPLENISM_CONTEXT",
+      "label": "HYPERSPLENISM CONTEXT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HYPERTHYROID_ANAEMIA_SUSPECT",
+      "label": "HYPERTHYROID ANAEMIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "HYPOPROLIFERATIVE_SUSPECT",
+      "label": "HYPOPROLIFERATIVE SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "IDA",
+      "label": "IDA",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "IDA_PROBABLE",
+      "label": "IDA PROBABLE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "INHERITED_THROMBOCYTOPENIA_SUSPECT",
+      "label": "INHERITED THROMBOCYTOPENIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "IRON_DEFICIENCY_NO_ANAEMIA",
+      "label": "IRON DEFICIENCY NO ANAEMIA",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "IRON_REPLETE_MICROCYTOSIS",
+      "label": "IRON REPLETE MICROCYTOSIS",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "KALA_AZAR_SUSPECT",
+      "label": "KALA AZAR SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "LEAD_TOXICITY_SUSPECT",
+      "label": "LEAD TOXICITY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "LEUKAEMOID_REACTION_SUSPECT",
+      "label": "LEUKAEMOID REACTION SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "LYMPHOPENIA_SUSPECT",
+      "label": "LYMPHOPENIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MACROCYTIC_ANEMIA",
+      "label": "MACROCYTIC ANEMIA",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MALARIA_SUSPECT",
+      "label": "MALARIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MARROW_INFILTRATION_SUSPECT",
+      "label": "MARROW INFILTRATION SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MARROW_PROCESS_SUSPECT",
+      "label": "MARROW PROCESS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MDS_SUSPECT",
+      "label": "MDS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MEGALOBLASTIC_SUSPECT",
+      "label": "MEGALOBLASTIC SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MEMBRANOPATHY_SUSPECT",
+      "label": "MEMBRANOPATHY SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MICROCYTIC_ANAEMIA_UNTYPED",
+      "label": "MICROCYTIC ANAEMIA UNTYPED",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MICROCYTIC_BORDERLINE_INDICES",
+      "label": "MICROCYTIC BORDERLINE INDICES",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY",
+      "label": "MICROCYTIC BORDERLINE PATRA LEANS IRON DEFICIENCY",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT",
+      "label": "MICROCYTIC BORDERLINE PATRA LEANS TRAIT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MPN_SUSPECT",
+      "label": "MPN SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "MYELOMA_SUSPECT",
+      "label": "MYELOMA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NEUTROPENIA_SUSPECT",
+      "label": "NEUTROPENIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT",
+      "label": "NON MEGALOBLASTIC MACROCYTOSIS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NON_MICROCYTIC_ANEMIA_OUTSIDE_SCOPE",
+      "label": "NON MICROCYTIC ANEMIA OUTSIDE SCOPE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NORMAL_CBC",
+      "label": "NORMAL CBC",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NORMOCYTIC_ANEMIA",
+      "label": "NORMOCYTIC ANEMIA",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "NO_FINDINGS",
+      "label": "NO FINDINGS",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "PANCYTOPENIA_SUSPECT",
+      "label": "PANCYTOPENIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "PNH_SUSPECT",
+      "label": "PNH SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "PROLYMPHOCYTIC_ATYPICAL_LYMPHOID_SUSPECT",
+      "label": "PROLYMPHOCYTIC ATYPICAL LYMPHOID SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "REACTIVE_THROMBOCYTOSIS_SUSPECT",
+      "label": "REACTIVE THROMBOCYTOSIS SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "SEPSIS_CONTEXT",
+      "label": "SEPSIS CONTEXT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "SEVERE_ANEMIA_SAFETY_BLOCK",
+      "label": "SEVERE ANEMIA SAFETY BLOCK",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "SICKLE_SUSPECT",
+      "label": "SICKLE SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "SIDEROBLASTIC_SUSPECT",
+      "label": "SIDEROBLASTIC SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "TB_ANAEMIA_SUSPECT",
+      "label": "TB ANAEMIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "THALASSAEMIA_TRAIT_SUSPECT",
+      "label": "THALASSAEMIA TRAIT SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "label": "THALASSEMIA TRAIT POSSIBLE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "THALASSEMIA_TRAIT_PROBABLE",
+      "label": "THALASSEMIA TRAIT PROBABLE",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "THROMBOCYTOPENIA_SUSPECT",
+      "label": "THROMBOCYTOPENIA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "THYROID_RESULT_NEEDS_ACTION",
+      "label": "THYROID RESULT NEEDS ACTION",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "TMA_SUSPECT",
+      "label": "TMA SUSPECT",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "URGENT_HAEMATOLOGY_REVIEW",
+      "label": "URGENT HAEMATOLOGY REVIEW",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "VIRAL_PATTERN_CONTEXT",
+      "label": "VIRAL PATTERN CONTEXT",
+      "weight": 1.0,
+      "tags": []
+    }
+  ],
+  "relationships": [
+    {
+      "input_id": "B12",
+      "outcome_id": "B12_DEFICIENCY_SUSPECT",
+      "path": "B12_DEFICIENCY_SUSPECT#generic"
+    },
+    {
+      "input_id": "B12",
+      "outcome_id": "B12_DEFICIENCY_SUSPECT",
+      "path": "B12_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "B12",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_b12"
+    },
+    {
+      "input_id": "B12",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_crp_b12"
+    },
+    {
+      "input_id": "BASO",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#differential_sum"
+    },
+    {
+      "input_id": "BASO",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#abc"
+    },
+    {
+      "input_id": "BASO",
+      "outcome_id": "CML_SUSPECT",
+      "path": "CML_SUSPECT#wbc_abc"
+    },
+    {
+      "input_id": "CALCIUM",
+      "outcome_id": "MYELOMA_SUSPECT",
+      "path": "MYELOMA_SUSPECT#rouleaux_calcium"
+    },
+    {
+      "input_id": "CERULOPLASMIN",
+      "outcome_id": "COPPER_DEFICIENCY_SUSPECT",
+      "path": "COPPER_DEFICIENCY_SUSPECT#copper"
+    },
+    {
+      "input_id": "CRP",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron_crp"
+    },
+    {
+      "input_id": "CRP",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron_crp"
+    },
+    {
+      "input_id": "CRP",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_crp_b12"
+    },
+    {
+      "input_id": "CRP",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin_crp"
+    },
+    {
+      "input_id": "CRP",
+      "outcome_id": "IRON_DEFICIENCY_NO_ANAEMIA",
+      "path": "IRON_DEFICIENCY_NO_ANAEMIA#ferritin_crp"
+    },
+    {
+      "input_id": "DAT_COOMBS",
+      "outcome_id": "AIHA_SUSPECT",
+      "path": "AIHA_SUSPECT#dat_pos"
+    },
+    {
+      "input_id": "DAT_COOMBS",
+      "outcome_id": "PNH_SUSPECT",
+      "path": "PNH_SUSPECT#dat_neg"
+    },
+    {
+      "input_id": "EOS",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#differential_sum"
+    },
+    {
+      "input_id": "EOS",
+      "outcome_id": "EOSINOPHILIA_INVESTIGATE",
+      "path": "EOSINOPHILIA_INVESTIGATE#aec_mid"
+    },
+    {
+      "input_id": "EOS",
+      "outcome_id": "EOSINOPHILIA_SUSPECT",
+      "path": "EOSINOPHILIA_SUSPECT#aec_mild"
+    },
+    {
+      "input_id": "EOS",
+      "outcome_id": "HOOKWORM_STH_IDA_SUSPECT",
+      "path": "HOOKWORM_STH_IDA_SUSPECT#micro_aec"
+    },
+    {
+      "input_id": "EOS",
+      "outcome_id": "HYPEREOSINOPHILIA_SUSPECT",
+      "path": "HYPEREOSINOPHILIA_SUSPECT#aec_marked"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "ACD_SUSPECT",
+      "path": "ACD_SUSPECT#masked_id"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron_crp"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron_crp"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_b12"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_crp_b12"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin_crp"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "IRON_DEFICIENCY_NO_ANAEMIA",
+      "path": "IRON_DEFICIENCY_NO_ANAEMIA#ferritin"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "IRON_DEFICIENCY_NO_ANAEMIA",
+      "path": "IRON_DEFICIENCY_NO_ANAEMIA#ferritin_crp"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "IRON_REPLETE_MICROCYTOSIS",
+      "path": "IRON_REPLETE_MICROCYTOSIS#ferritin"
+    },
+    {
+      "input_id": "FERRITIN",
+      "outcome_id": "SIDEROBLASTIC_SUSPECT",
+      "path": "SIDEROBLASTIC_SUSPECT#iron_loaded"
+    },
+    {
+      "input_id": "FIBRINOGEN",
+      "outcome_id": "DIC_SUSPECT",
+      "path": "DIC_SUSPECT#fibrinogen"
+    },
+    {
+      "input_id": "FOLATE",
+      "outcome_id": "FOLATE_DEFICIENCY_SUSPECT",
+      "path": "FOLATE_DEFICIENCY_SUSPECT#generic"
+    },
+    {
+      "input_id": "FOLATE",
+      "outcome_id": "FOLATE_DEFICIENCY_SUSPECT",
+      "path": "FOLATE_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "FT4",
+      "outcome_id": "HYPERTHYROID_ANAEMIA_SUSPECT",
+      "path": "HYPERTHYROID_ANAEMIA_SUSPECT#thyroid"
+    },
+    {
+      "input_id": "HAPTOGLOBIN",
+      "outcome_id": "AIHA_SUSPECT",
+      "path": "AIHA_SUSPECT#dat_pos"
+    },
+    {
+      "input_id": "HAPTOGLOBIN",
+      "outcome_id": "COMPENSATED_HAEMOLYSIS_SUSPECT",
+      "path": "COMPENSATED_HAEMOLYSIS_SUSPECT#haptoglobin"
+    },
+    {
+      "input_id": "HAPTOGLOBIN",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#haptoglobin"
+    },
+    {
+      "input_id": "HAPTOGLOBIN",
+      "outcome_id": "PNH_SUSPECT",
+      "path": "PNH_SUSPECT#dat_neg"
+    },
+    {
+      "input_id": "HBA2",
+      "outcome_id": "ALPHA_TRAIT_SUSPECT",
+      "path": "ALPHA_TRAIT_SUSPECT#hba2"
+    },
+    {
+      "input_id": "HBA2",
+      "outcome_id": "BTT",
+      "path": "BTT#hba2"
+    },
+    {
+      "input_id": "HBA2",
+      "outcome_id": "HBA2_EQUIVOCAL_BAND",
+      "path": "HBA2_EQUIVOCAL_BAND#hba2"
+    },
+    {
+      "input_id": "HBA2",
+      "outcome_id": "HBA2_VARIANT_RANGE",
+      "path": "HBA2_VARIANT_RANGE#hba2"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "AIHA_SUSPECT",
+      "path": "AIHA_SUSPECT#dat_pos"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "APLASTIC_ANAEMIA_SUSPECT",
+      "path": "APLASTIC_ANAEMIA_SUSPECT#pancytopenia_retic"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "B12_DEFICIENCY_SUSPECT",
+      "path": "B12_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "BLOOD_LOSS_SUSPECT",
+      "path": "BLOOD_LOSS_SUSPECT#retic_high"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "CAPILLARY_SCREEN_CONFIRM_VENOUS",
+      "path": "CAPILLARY_SCREEN_CONFIRM_VENOUS#capillary_hgb"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "COMPENSATED_HAEMOLYSIS_SUSPECT",
+      "path": "COMPENSATED_HAEMOLYSIS_SUSPECT#haptoglobin"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "COPPER_DEFICIENCY_SUSPECT",
+      "path": "COPPER_DEFICIENCY_SUSPECT#copper"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron_crp"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#normo_rdwcv"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#normo_rdwsd"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_b12"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "DUAL_DEFICIENCY_SUSPECT",
+      "path": "DUAL_DEFICIENCY_SUSPECT#iron_crp_b12"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "ERYTHROCYTOSIS_SUSPECT",
+      "path": "ERYTHROCYTOSIS_SUSPECT#hgb_high"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "FOLATE_DEFICIENCY_SUSPECT",
+      "path": "FOLATE_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "FUNGAL_MARROW_SUSPECT",
+      "path": "FUNGAL_MARROW_SUSPECT#pancytopenia"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "G6PD_DEFICIENCY_SUSPECT",
+      "path": "G6PD_DEFICIENCY_SUSPECT#bite_cells"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#bite_cells"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#haptoglobin"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#sickle_cells"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#spherocytes"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HIV_CONTEXT_FLAG",
+      "path": "HIV_CONTEXT_FLAG#anaemia"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HLH_SUSPECT",
+      "path": "HLH_SUSPECT#bicytopenia"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HYPERTHYROID_ANAEMIA_SUSPECT",
+      "path": "HYPERTHYROID_ANAEMIA_SUSPECT#thyroid"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "HYPOPROLIFERATIVE_SUSPECT",
+      "path": "HYPOPROLIFERATIVE_SUSPECT#retic_low"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin_crp"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "IRON_DEFICIENCY_NO_ANAEMIA",
+      "path": "IRON_DEFICIENCY_NO_ANAEMIA#ferritin"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "IRON_DEFICIENCY_NO_ANAEMIA",
+      "path": "IRON_DEFICIENCY_NO_ANAEMIA#ferritin_crp"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "KALA_AZAR_SUSPECT",
+      "path": "KALA_AZAR_SUSPECT#anaemia"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MACROCYTIC_ANEMIA",
+      "path": "MACROCYTIC_ANEMIA#macro"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MALARIA_SUSPECT",
+      "path": "MALARIA_SUSPECT#anaemia_plt"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MARROW_PROCESS_SUSPECT",
+      "path": "MARROW_PROCESS_SUSPECT#isolated_retic"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MEGALOBLASTIC_SUSPECT",
+      "path": "MEGALOBLASTIC_SUSPECT#hyperseg"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MEMBRANOPATHY_SUSPECT",
+      "path": "MEMBRANOPATHY_SUSPECT#spherocytes"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MICROCYTIC_ANAEMIA_UNTYPED",
+      "path": "MICROCYTIC_ANAEMIA_UNTYPED#fallback"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MPN_SUSPECT",
+      "path": "MPN_SUSPECT#hgb_high"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MYELOMA_SUSPECT",
+      "path": "MYELOMA_SUSPECT#rouleaux_bone_pain"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "MYELOMA_SUSPECT",
+      "path": "MYELOMA_SUSPECT#rouleaux_calcium"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT",
+      "path": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT#hypothyroid"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "NON_MICROCYTIC_ANEMIA_OUTSIDE_SCOPE",
+      "path": "NON_MICROCYTIC_ANEMIA_OUTSIDE_SCOPE#authored"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "NORMOCYTIC_ANEMIA",
+      "path": "NORMOCYTIC_ANEMIA#normo"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "NO_FINDINGS",
+      "path": "NO_FINDINGS#all_normal"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "PANCYTOPENIA_SUSPECT",
+      "path": "PANCYTOPENIA_SUSPECT#tri_lineage"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "PNH_SUSPECT",
+      "path": "PNH_SUSPECT#dat_neg"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "SEVERE_ANEMIA_SAFETY_BLOCK",
+      "path": "SEVERE_ANEMIA_SAFETY_BLOCK#hgb_severe"
+    },
+    {
+      "input_id": "HGB",
+      "outcome_id": "TB_ANAEMIA_SUSPECT",
+      "path": "TB_ANAEMIA_SUSPECT#anaemia_amc"
+    },
+    {
+      "input_id": "LYMPH",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#differential_sum"
+    },
+    {
+      "input_id": "LYMPH",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#alc"
+    },
+    {
+      "input_id": "LYMPH",
+      "outcome_id": "CLL_CLPD_SUSPECT",
+      "path": "CLL_CLPD_SUSPECT#alc_marked"
+    },
+    {
+      "input_id": "LYMPH",
+      "outcome_id": "LYMPHOPENIA_SUSPECT",
+      "path": "LYMPHOPENIA_SUSPECT#alc_plt"
+    },
+    {
+      "input_id": "MCH",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#implied_mchc"
+    },
+    {
+      "input_id": "MCH",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#mchc_mismatch"
+    },
+    {
+      "input_id": "MCH",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "MCH",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "MCH",
+      "outcome_id": "NO_FINDINGS",
+      "path": "NO_FINDINGS#all_normal"
+    },
+    {
+      "input_id": "MCHC",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#mchc_high"
+    },
+    {
+      "input_id": "MCHC",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#mchc_mismatch"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "ALPHA_TRAIT_SUSPECT",
+      "path": "ALPHA_TRAIT_SUSPECT#hba2"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "BLOOD_LOSS_SUSPECT",
+      "path": "BLOOD_LOSS_SUSPECT#retic_high"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "BTT",
+      "path": "BTT#hba2"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#implied_mchc"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#mchc_mismatch"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#bicytopenia"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#cbc_only"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron_crp"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#macro_iron_crp"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#normo_rdwcv"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#normo_rdwsd"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "HBPATHY_SUSPECT",
+      "path": "HBPATHY_SUSPECT#target"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "HOOKWORM_STH_IDA_SUSPECT",
+      "path": "HOOKWORM_STH_IDA_SUSPECT#micro_aec"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "HYPOPROLIFERATIVE_SUSPECT",
+      "path": "HYPOPROLIFERATIVE_SUSPECT#retic_low"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "IDA",
+      "path": "IDA#ferritin_crp"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "IRON_REPLETE_MICROCYTOSIS",
+      "path": "IRON_REPLETE_MICROCYTOSIS#ferritin"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "IRON_REPLETE_MICROCYTOSIS",
+      "path": "IRON_REPLETE_MICROCYTOSIS#tsat"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "MACROCYTIC_ANEMIA",
+      "path": "MACROCYTIC_ANEMIA#macro"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "MEGALOBLASTIC_SUSPECT",
+      "path": "MEGALOBLASTIC_SUSPECT#hyperseg"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "MICROCYTIC_ANAEMIA_UNTYPED",
+      "path": "MICROCYTIC_ANAEMIA_UNTYPED#fallback"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "MICROCYTIC_BORDERLINE_INDICES",
+      "path": "MICROCYTIC_BORDERLINE_INDICES#mentzer_only"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY",
+      "path": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY#patra"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT",
+      "path": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT#patra"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT",
+      "path": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT#hypothyroid"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "NON_MICROCYTIC_ANEMIA_OUTSIDE_SCOPE",
+      "path": "NON_MICROCYTIC_ANEMIA_OUTSIDE_SCOPE#authored"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "NORMOCYTIC_ANEMIA",
+      "path": "NORMOCYTIC_ANEMIA#normo"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "NO_FINDINGS",
+      "path": "NO_FINDINGS#all_normal"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "path": "THALASSEMIA_TRAIT_POSSIBLE#rdwcv"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "path": "THALASSEMIA_TRAIT_POSSIBLE#rdwsd"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "THALASSEMIA_TRAIT_PROBABLE",
+      "path": "THALASSEMIA_TRAIT_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "MCV",
+      "outcome_id": "THALASSEMIA_TRAIT_PROBABLE",
+      "path": "THALASSEMIA_TRAIT_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "MONO",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#differential_sum"
+    },
+    {
+      "input_id": "MONO",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#amc"
+    },
+    {
+      "input_id": "MONO",
+      "outcome_id": "MDS_SUSPECT",
+      "path": "MDS_SUSPECT#amc"
+    },
+    {
+      "input_id": "MONO",
+      "outcome_id": "TB_ANAEMIA_SUSPECT",
+      "path": "TB_ANAEMIA_SUSPECT#anaemia_amc"
+    },
+    {
+      "input_id": "MPV",
+      "outcome_id": "INHERITED_THROMBOCYTOPENIA_SUSPECT",
+      "path": "INHERITED_THROMBOCYTOPENIA_SUSPECT#mpv"
+    },
+    {
+      "input_id": "NEUT",
+      "outcome_id": "AGRANULOCYTOSIS_SUSPECT",
+      "path": "AGRANULOCYTOSIS_SUSPECT#anc_severe"
+    },
+    {
+      "input_id": "NEUT",
+      "outcome_id": "BENIGN_ETHNIC_NEUTROPENIA_CONTEXT",
+      "path": "BENIGN_ETHNIC_NEUTROPENIA_CONTEXT#anc_band"
+    },
+    {
+      "input_id": "NEUT",
+      "outcome_id": "CANNOT_EVALUATE",
+      "path": "CANNOT_EVALUATE#differential_sum"
+    },
+    {
+      "input_id": "NEUT",
+      "outcome_id": "NEUTROPENIA_SUSPECT",
+      "path": "NEUTROPENIA_SUSPECT#anc_plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "ACUTE_LEUKAEMIA_SUSPECT",
+      "path": "ACUTE_LEUKAEMIA_SUSPECT#blasts_plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "APLASTIC_ANAEMIA_SUSPECT",
+      "path": "APLASTIC_ANAEMIA_SUSPECT#pancytopenia_retic"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "B12_DEFICIENCY_SUSPECT",
+      "path": "B12_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#bicytopenia"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "CRITICAL_THROMBOCYTOPENIA",
+      "path": "CRITICAL_THROMBOCYTOPENIA#plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "DENGUE_SUSPECT",
+      "path": "DENGUE_SUSPECT#plt_wbc"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "DIC_SUSPECT",
+      "path": "DIC_SUSPECT#fibrinogen"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "DIC_SUSPECT",
+      "path": "DIC_SUSPECT#pt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "FOLATE_DEFICIENCY_SUSPECT",
+      "path": "FOLATE_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "FUNGAL_MARROW_SUSPECT",
+      "path": "FUNGAL_MARROW_SUSPECT#pancytopenia"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "HIT_SUSPECT",
+      "path": "HIT_SUSPECT#plt_heparin"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "HIV_CONTEXT_FLAG",
+      "path": "HIV_CONTEXT_FLAG#thrombocytopenia"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "HLH_SUSPECT",
+      "path": "HLH_SUSPECT#bicytopenia"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "HYPERSPLENISM_CONTEXT",
+      "path": "HYPERSPLENISM_CONTEXT#thrombocytopenia"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "LYMPHOPENIA_SUSPECT",
+      "path": "LYMPHOPENIA_SUSPECT#alc_plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "MALARIA_SUSPECT",
+      "path": "MALARIA_SUSPECT#anaemia_plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "MPN_SUSPECT",
+      "path": "MPN_SUSPECT#thrombocytosis"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "NEUTROPENIA_SUSPECT",
+      "path": "NEUTROPENIA_SUSPECT#anc_plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "NO_FINDINGS",
+      "path": "NO_FINDINGS#all_normal"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "PANCYTOPENIA_SUSPECT",
+      "path": "PANCYTOPENIA_SUSPECT#tri_lineage"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "REACTIVE_THROMBOCYTOSIS_SUSPECT",
+      "path": "REACTIVE_THROMBOCYTOSIS_SUSPECT#plt_high"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "SEPSIS_CONTEXT",
+      "path": "SEPSIS_CONTEXT#plt_wbc"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "THROMBOCYTOPENIA_SUSPECT",
+      "path": "THROMBOCYTOPENIA_SUSPECT#plt"
+    },
+    {
+      "input_id": "PLT",
+      "outcome_id": "TMA_SUSPECT",
+      "path": "TMA_SUSPECT#schistocytes"
+    },
+    {
+      "input_id": "PT_PROLONGATION_SEC",
+      "outcome_id": "DIC_SUSPECT",
+      "path": "DIC_SUSPECT#pt"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#cbc_only"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#mentzer_iron_crp"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "MICROCYTIC_BORDERLINE_INDICES",
+      "path": "MICROCYTIC_BORDERLINE_INDICES#mentzer_only"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY",
+      "path": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY#patra"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT",
+      "path": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT#patra"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "NO_FINDINGS",
+      "path": "NO_FINDINGS#all_normal"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "path": "THALASSEMIA_TRAIT_POSSIBLE#rdwcv"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "path": "THALASSEMIA_TRAIT_POSSIBLE#rdwsd"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "THALASSEMIA_TRAIT_PROBABLE",
+      "path": "THALASSEMIA_TRAIT_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "RBC",
+      "outcome_id": "THALASSEMIA_TRAIT_PROBABLE",
+      "path": "THALASSEMIA_TRAIT_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "COEXISTENCE_BTT_IDA",
+      "path": "COEXISTENCE_BTT_IDA#cbc_only"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#normo_rdwcv"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY",
+      "path": "MICROCYTIC_BORDERLINE_PATRA_LEANS_IRON_DEFICIENCY#patra"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT",
+      "path": "MICROCYTIC_BORDERLINE_PATRA_LEANS_TRAIT#patra"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "path": "THALASSEMIA_TRAIT_POSSIBLE#rdwcv"
+    },
+    {
+      "input_id": "RDW_CV",
+      "outcome_id": "THALASSEMIA_TRAIT_PROBABLE",
+      "path": "THALASSEMIA_TRAIT_PROBABLE#rdwcv"
+    },
+    {
+      "input_id": "RDW_SD",
+      "outcome_id": "DIMORPHIC",
+      "path": "DIMORPHIC#normo_rdwsd"
+    },
+    {
+      "input_id": "RDW_SD",
+      "outcome_id": "IDA_PROBABLE",
+      "path": "IDA_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "RDW_SD",
+      "outcome_id": "THALASSEMIA_TRAIT_POSSIBLE",
+      "path": "THALASSEMIA_TRAIT_POSSIBLE#rdwsd"
+    },
+    {
+      "input_id": "RDW_SD",
+      "outcome_id": "THALASSEMIA_TRAIT_PROBABLE",
+      "path": "THALASSEMIA_TRAIT_PROBABLE#rdwsd"
+    },
+    {
+      "input_id": "RETIC",
+      "outcome_id": "APLASTIC_ANAEMIA_SUSPECT",
+      "path": "APLASTIC_ANAEMIA_SUSPECT#pancytopenia_retic"
+    },
+    {
+      "input_id": "RETIC",
+      "outcome_id": "BLOOD_LOSS_SUSPECT",
+      "path": "BLOOD_LOSS_SUSPECT#retic_high"
+    },
+    {
+      "input_id": "RETIC",
+      "outcome_id": "HYPOPROLIFERATIVE_SUSPECT",
+      "path": "HYPOPROLIFERATIVE_SUSPECT#retic_low"
+    },
+    {
+      "input_id": "RETIC",
+      "outcome_id": "MARROW_PROCESS_SUSPECT",
+      "path": "MARROW_PROCESS_SUSPECT#isolated_retic"
+    },
+    {
+      "input_id": "SERUM_COPPER",
+      "outcome_id": "COPPER_DEFICIENCY_SUSPECT",
+      "path": "COPPER_DEFICIENCY_SUSPECT#copper"
+    },
+    {
+      "input_id": "TSAT",
+      "outcome_id": "ACD_SUSPECT",
+      "path": "ACD_SUSPECT#masked_id"
+    },
+    {
+      "input_id": "TSAT",
+      "outcome_id": "IRON_REPLETE_MICROCYTOSIS",
+      "path": "IRON_REPLETE_MICROCYTOSIS#tsat"
+    },
+    {
+      "input_id": "TSAT",
+      "outcome_id": "SIDEROBLASTIC_SUSPECT",
+      "path": "SIDEROBLASTIC_SUSPECT#iron_loaded"
+    },
+    {
+      "input_id": "TSH",
+      "outcome_id": "HYPERTHYROID_ANAEMIA_SUSPECT",
+      "path": "HYPERTHYROID_ANAEMIA_SUSPECT#thyroid"
+    },
+    {
+      "input_id": "TSH",
+      "outcome_id": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT",
+      "path": "NON_MEGALOBLASTIC_MACROCYTOSIS_SUSPECT#hypothyroid"
+    },
+    {
+      "input_id": "TSH",
+      "outcome_id": "THYROID_RESULT_NEEDS_ACTION",
+      "path": "THYROID_RESULT_NEEDS_ACTION#tsh"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "ACUTE_LEUKAEMIA_SUSPECT",
+      "path": "ACUTE_LEUKAEMIA_SUSPECT#blasts_wbc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "AGRANULOCYTOSIS_SUSPECT",
+      "path": "AGRANULOCYTOSIS_SUSPECT#anc_severe"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "AGRANULOCYTOSIS_SUSPECT",
+      "path": "AGRANULOCYTOSIS_SUSPECT#wbc_below_1"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "APLASTIC_ANAEMIA_SUSPECT",
+      "path": "APLASTIC_ANAEMIA_SUSPECT#pancytopenia_retic"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "B12_DEFICIENCY_SUSPECT",
+      "path": "B12_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "BENIGN_ETHNIC_NEUTROPENIA_CONTEXT",
+      "path": "BENIGN_ETHNIC_NEUTROPENIA_CONTEXT#anc_band"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#abc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#alc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#amc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#bicytopenia"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CANNOT_RESOLVE_ON_CBC",
+      "path": "CANNOT_RESOLVE_ON_CBC#wbc_extreme"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CLL_CLPD_SUSPECT",
+      "path": "CLL_CLPD_SUSPECT#alc_marked"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "CML_SUSPECT",
+      "path": "CML_SUSPECT#wbc_abc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "DENGUE_SUSPECT",
+      "path": "DENGUE_SUSPECT#plt_wbc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "ENTERIC_FEVER_CONTEXT",
+      "path": "ENTERIC_FEVER_CONTEXT#leukopenia"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "EOSINOPHILIA_INVESTIGATE",
+      "path": "EOSINOPHILIA_INVESTIGATE#aec_mid"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "EOSINOPHILIA_SUSPECT",
+      "path": "EOSINOPHILIA_SUSPECT#aec_mild"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "FOLATE_DEFICIENCY_SUSPECT",
+      "path": "FOLATE_DEFICIENCY_SUSPECT#pancytopenic"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "FUNGAL_MARROW_SUSPECT",
+      "path": "FUNGAL_MARROW_SUSPECT#pancytopenia"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "HIV_CONTEXT_FLAG",
+      "path": "HIV_CONTEXT_FLAG#leukopenia"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "HOOKWORM_STH_IDA_SUSPECT",
+      "path": "HOOKWORM_STH_IDA_SUSPECT#micro_aec"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "HYPEREOSINOPHILIA_SUSPECT",
+      "path": "HYPEREOSINOPHILIA_SUSPECT#aec_marked"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "HYPERSPLENISM_CONTEXT",
+      "path": "HYPERSPLENISM_CONTEXT#leukopenia"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "LEUKAEMOID_REACTION_SUSPECT",
+      "path": "LEUKAEMOID_REACTION_SUSPECT#wbc_extreme"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "LYMPHOPENIA_SUSPECT",
+      "path": "LYMPHOPENIA_SUSPECT#alc_plt"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "MDS_SUSPECT",
+      "path": "MDS_SUSPECT#amc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "NEUTROPENIA_SUSPECT",
+      "path": "NEUTROPENIA_SUSPECT#anc_plt"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "NO_FINDINGS",
+      "path": "NO_FINDINGS#all_normal"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "PANCYTOPENIA_SUSPECT",
+      "path": "PANCYTOPENIA_SUSPECT#tri_lineage"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "SEPSIS_CONTEXT",
+      "path": "SEPSIS_CONTEXT#plt_wbc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "TB_ANAEMIA_SUSPECT",
+      "path": "TB_ANAEMIA_SUSPECT#anaemia_amc"
+    },
+    {
+      "input_id": "WBC",
+      "outcome_id": "VIRAL_PATTERN_CONTEXT",
+      "path": "VIRAL_PATTERN_CONTEXT#leukopenia"
+    },
+    {
+      "input_id": "basophilic_stippling",
+      "outcome_id": "LEAD_TOXICITY_SUSPECT",
+      "path": "LEAD_TOXICITY_SUSPECT#stippling"
+    },
+    {
+      "input_id": "bite_cells",
+      "outcome_id": "G6PD_DEFICIENCY_SUSPECT",
+      "path": "G6PD_DEFICIENCY_SUSPECT#bite_cells"
+    },
+    {
+      "input_id": "bite_cells",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#bite_cells"
+    },
+    {
+      "input_id": "blasts_auer_rods",
+      "outcome_id": "ACUTE_LEUKAEMIA_SUSPECT",
+      "path": "ACUTE_LEUKAEMIA_SUSPECT#blasts_plt"
+    },
+    {
+      "input_id": "blasts_auer_rods",
+      "outcome_id": "ACUTE_LEUKAEMIA_SUSPECT",
+      "path": "ACUTE_LEUKAEMIA_SUSPECT#blasts_wbc"
+    },
+    {
+      "input_id": "blasts_auer_rods",
+      "outcome_id": "URGENT_HAEMATOLOGY_REVIEW",
+      "path": "URGENT_HAEMATOLOGY_REVIEW#blasts"
+    },
+    {
+      "input_id": "hypersegmented_neutrophils",
+      "outcome_id": "MEGALOBLASTIC_SUSPECT",
+      "path": "MEGALOBLASTIC_SUSPECT#hyperseg"
+    },
+    {
+      "input_id": "nucleated_rbc",
+      "outcome_id": "MARROW_INFILTRATION_SUSPECT",
+      "path": "MARROW_INFILTRATION_SUSPECT#leukoerythroblastic"
+    },
+    {
+      "input_id": "rouleaux",
+      "outcome_id": "MYELOMA_SUSPECT",
+      "path": "MYELOMA_SUSPECT#rouleaux_bone_pain"
+    },
+    {
+      "input_id": "rouleaux",
+      "outcome_id": "MYELOMA_SUSPECT",
+      "path": "MYELOMA_SUSPECT#rouleaux_calcium"
+    },
+    {
+      "input_id": "schistocytes",
+      "outcome_id": "TMA_SUSPECT",
+      "path": "TMA_SUSPECT#schistocytes"
+    },
+    {
+      "input_id": "sickle_cells",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#sickle_cells"
+    },
+    {
+      "input_id": "sickle_cells",
+      "outcome_id": "SICKLE_SUSPECT",
+      "path": "SICKLE_SUSPECT#sickle"
+    },
+    {
+      "input_id": "spherocytes",
+      "outcome_id": "HAEMOLYSIS_SUSPECT",
+      "path": "HAEMOLYSIS_SUSPECT#spherocytes"
+    },
+    {
+      "input_id": "spherocytes",
+      "outcome_id": "MEMBRANOPATHY_SUSPECT",
+      "path": "MEMBRANOPATHY_SUSPECT#spherocytes"
+    },
+    {
+      "input_id": "target_cells",
+      "outcome_id": "HBPATHY_SUSPECT",
+      "path": "HBPATHY_SUSPECT#target"
+    },
+    {
+      "input_id": "teardrop_dacrocytes",
+      "outcome_id": "MARROW_INFILTRATION_SUSPECT",
+      "path": "MARROW_INFILTRATION_SUSPECT#leukoerythroblastic"
+    }
+  ],
+  "constraints": {
+    "min_selected": 0,
+    "max_selected": null,
+    "max_total_cost": null,
+    "required_inputs": [],
+    "excluded_inputs": [],
+    "required_outcomes": []
+  },
+  "objective": "maximize_weighted_coverage",
+  "provenance": {
+    "generated_by": "qbm.export/v2",
+    "source_revision": null,
+    "source_artifact_ids": [
+      "benchmark:QBMED-HEME-001"
+    ],
+    "projection_method": "Derived from an implementation audit of a running rule engine, not from a clinical specification. Edges describe which inputs the engine currently reads. No clinical claim follows from any optimization result on this profile: a smaller covering panel does not mean a test is clinically unnecessary."
+  },
+  "unconditional_outcomes": [
+    "ANEMIA_UNCLASSIFIED",
+    "CANNOT_EVALUATE"
+  ]
+}

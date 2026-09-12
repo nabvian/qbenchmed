@@ -91,6 +91,87 @@ enum Command {
         #[command(subcommand)]
         command: ProjectionCommand,
     },
+    /// Analyse a `qbm.profile` document directly, without a governed run.
+    ///
+    /// The browser workflow is the reviewed path. These commands are the
+    /// scriptable one: same kernel, same numbers, no approval ceremony, so a
+    /// profile can be checked in CI or from a shell.
+    Bench {
+        #[command(subcommand)]
+        command: BenchCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum BenchCommand {
+    /// Validate a profile and report its structural facts.
+    Check {
+        /// Path to a qbm.profile JSON document.
+        profile: PathBuf,
+    },
+    /// Run the full classical analysis: coverage at K, minimum panels, solvers.
+    Analyze {
+        /// Path to a qbm.profile JSON document.
+        profile: PathBuf,
+    },
+    /// Run one solver against one profile.
+    Solve {
+        /// Path to a qbm.profile JSON document.
+        profile: PathBuf,
+        /// Which solver to run.
+        #[arg(long, value_enum, default_value_t = CliSolver::Ilp)]
+        solver: CliSolver,
+        /// Panel-size ceiling.
+        #[arg(long)]
+        max_inputs: Option<usize>,
+        /// Required weighted-coverage fraction in (0, 1].
+        #[arg(long)]
+        coverage_floor: Option<f64>,
+        /// Iterations for the annealing and tabu baselines.
+        #[arg(long, default_value_t = 10_000)]
+        iterations: usize,
+    },
+    /// Build and validate the QUBO and Ising formulations.
+    Qubo {
+        /// Path to a qbm.profile JSON document.
+        profile: PathBuf,
+        /// Panel-size ceiling encoded into the model.
+        #[arg(long)]
+        max_inputs: Option<usize>,
+    },
+    /// Compare two profile revisions that share a `profile_id`.
+    Compare {
+        /// Earlier revision.
+        before: PathBuf,
+        /// Later revision.
+        after: PathBuf,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum CliSolver {
+    /// Exhaustive enumeration; proves optimality but only for small profiles.
+    Exact,
+    /// Certified branch-and-bound over the native integer program.
+    Ilp,
+    /// Deterministic marginal weighted-coverage-per-cost baseline.
+    Greedy,
+    /// Seeded simulated annealing.
+    Annealing,
+    /// Seeded one-flip tabu search.
+    Tabu,
+}
+
+impl From<CliSolver> for qbm_benchmark::SolverKind {
+    fn from(value: CliSolver) -> Self {
+        match value {
+            CliSolver::Exact => Self::Exact,
+            CliSolver::Ilp => Self::Ilp,
+            CliSolver::Greedy => Self::Greedy,
+            CliSolver::Annealing => Self::SimulatedAnnealing,
+            CliSolver::Tabu => Self::TabuSearch,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -581,6 +662,20 @@ enum CliError {
     Web(#[from] qbm_web::WebServerError),
     #[error("cannot start the asynchronous browser service: {0}")]
     Runtime(#[from] std::io::Error),
+    #[error("cannot read {path}: {source}")]
+    ReadProfile {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{path} is not a valid qbm.profile document: {source}")]
+    ParseProfile {
+        path: String,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error(transparent)]
+    Benchmark(#[from] qbm_benchmark::BenchmarkError),
 }
 
 fn main() -> ExitCode {
@@ -826,6 +921,159 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                 }
             },
         },
+        Command::Bench { command } => run_bench(command, cli.json)?,
+    }
+    Ok(())
+}
+
+/// Read and validate a `qbm.profile` document from disk.
+fn load_profile(path: &Path) -> Result<qbm_benchmark::BenchmarkProfile, CliError> {
+    let text = std::fs::read_to_string(path).map_err(|source| CliError::ReadProfile {
+        path: path.display().to_string(),
+        source,
+    })?;
+    let profile: qbm_benchmark::BenchmarkProfile =
+        serde_json::from_str(&text).map_err(|source| CliError::ParseProfile {
+            path: path.display().to_string(),
+            source,
+        })?;
+    profile.validate()?;
+    Ok(profile)
+}
+
+/// Panel sizes worth reporting for a profile of this width.
+fn bench_panel_sizes(input_count: usize) -> Vec<usize> {
+    let mut sizes: Vec<usize> = [5, 10, 20, 50, 100]
+        .into_iter()
+        .filter(|size| *size <= input_count)
+        .collect();
+    if sizes.last().copied() != Some(input_count) {
+        sizes.push(input_count);
+    }
+    sizes.sort_unstable();
+    sizes.dedup();
+    sizes
+}
+
+#[allow(clippy::too_many_lines)] // One arm per command reads better than five thin helpers.
+fn run_bench(command: BenchCommand, compact: bool) -> Result<(), CliError> {
+    use qbm_benchmark::{
+        OptimizationRequest, SolverConfig, SolverKind, build_qubo, coverage_at_k, diff_profiles,
+        estimate_difficulty, minimum_panel, solve, structural_metrics,
+    };
+    let config = SolverConfig::default();
+
+    match command {
+        BenchCommand::Check { profile } => {
+            let profile = load_profile(&profile)?;
+            emit(
+                &serde_json::json!({
+                    "profile_id": profile.profile_id,
+                    "schema_version": profile.schema_version,
+                    "title": profile.title,
+                    "purely_disjunctive": profile.is_purely_disjunctive(),
+                    "structural": structural_metrics(&profile)?,
+                }),
+                compact,
+            );
+        }
+        BenchCommand::Analyze { profile } => {
+            let profile = load_profile(&profile)?;
+            // Certified where it can be: exhaustive while that is cheap, then
+            // branch-and-bound, which proves the same thing far beyond it.
+            let solver = if profile.inputs.len() <= config.exact_max_inputs {
+                SolverKind::Exact
+            } else {
+                SolverKind::Ilp
+            };
+            let sizes = bench_panel_sizes(profile.inputs.len());
+            let coverage = coverage_at_k(&profile, &sizes, solver, &config)?;
+            let panels: Vec<_> = [0.8, 0.9, 1.0]
+                .into_iter()
+                .map(|floor| {
+                    let outcome = minimum_panel(&profile, floor, solver, &config);
+                    serde_json::json!({
+                        "coverage_floor": floor,
+                        "selected_count": outcome.as_ref().ok().map(|r| r.score.selected_count),
+                        "optimality_proven": outcome.as_ref().ok().map(|r| r.optimality_proven),
+                        "unavailable_reason": outcome.as_ref().err().map(ToString::to_string),
+                    })
+                })
+                .collect();
+            emit(
+                &serde_json::json!({
+                    "profile_id": profile.profile_id,
+                    "coverage_solver": solver,
+                    "structural": structural_metrics(&profile)?,
+                    "coverage_at_k": coverage,
+                    "minimum_panels": panels,
+                }),
+                compact,
+            );
+        }
+        BenchCommand::Solve {
+            profile,
+            solver,
+            max_inputs,
+            coverage_floor,
+            iterations,
+        } => {
+            let profile = load_profile(&profile)?;
+            let kind: SolverKind = solver.into();
+            let request = OptimizationRequest {
+                solver: kind,
+                max_inputs,
+                coverage_floor,
+                seed: config.default_seed,
+                iterations: if matches!(
+                    kind,
+                    SolverKind::SimulatedAnnealing | SolverKind::TabuSearch
+                ) {
+                    iterations
+                } else {
+                    0
+                },
+            };
+            let result = if coverage_floor.is_some() && kind.can_prove_optimality() {
+                minimum_panel(&profile, coverage_floor.unwrap_or(1.0), kind, &config)?
+            } else {
+                solve(&profile, &request, &config)?
+            };
+            emit(&result, compact);
+        }
+        BenchCommand::Qubo {
+            profile,
+            max_inputs,
+        } => {
+            let profile = load_profile(&profile)?;
+            let request = OptimizationRequest {
+                solver: SolverKind::Greedy,
+                max_inputs: max_inputs.or(Some(profile.inputs.len())),
+                coverage_floor: None,
+                seed: config.default_seed,
+                iterations: 0,
+            };
+            let qubo = build_qubo(&profile, &request)?;
+            let ising = qubo.to_ising()?;
+            let metrics = qubo.metrics();
+            let difficulty = estimate_difficulty(&profile, &metrics);
+            emit(
+                &serde_json::json!({
+                    "profile_id": profile.profile_id,
+                    "request": request,
+                    "metrics": metrics,
+                    "difficulty": difficulty,
+                    "ising_offset": ising.offset,
+                    "note": "logical formulation export only; no provider job is submitted and no quantum advantage is claimed",
+                }),
+                compact,
+            );
+        }
+        BenchCommand::Compare { before, after } => {
+            let before = load_profile(&before)?;
+            let after = load_profile(&after)?;
+            emit(&diff_profiles(&before, &after)?, compact);
+        }
     }
     Ok(())
 }

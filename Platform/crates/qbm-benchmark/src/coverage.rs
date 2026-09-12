@@ -118,6 +118,25 @@ impl InputSet {
             .sum()
     }
 
+    /// Add every member of `other`.
+    pub fn union_with(&mut self, other: &Self) {
+        for (mine, theirs) in self.words.iter_mut().zip(&other.words) {
+            *mine |= theirs;
+        }
+    }
+
+    /// Call `visit` with each present index, ascending, without allocating.
+    pub fn for_each(&self, mut visit: impl FnMut(usize)) {
+        for (word_index, word) in self.words.iter().enumerate() {
+            let mut bits = *word;
+            while bits != 0 {
+                let bit = bits.trailing_zeros() as usize;
+                visit(word_index * 64 + bit);
+                bits &= bits - 1;
+            }
+        }
+    }
+
     /// Present indices in ascending order.
     #[must_use]
     pub fn indices(&self) -> Vec<usize> {
@@ -150,6 +169,14 @@ pub struct Arm {
     pub absent_indices: Vec<usize>,
     /// Path label this arm was built from; empty for a singleton arm.
     pub path: String,
+    /// `require_present` merged with the owning rule's global requirements.
+    ///
+    /// Precomputed because branch-and-bound asks "could this arm still be
+    /// satisfied?" once per outcome per node, and rebuilding the union there
+    /// meant an allocation in the hottest loop in the crate.
+    pub present_closure: InputSet,
+    /// `require_absent` merged with the owning rule's global exclusions.
+    pub absent_closure: InputSet,
 }
 
 impl Arm {
@@ -214,23 +241,36 @@ impl OutcomeRule {
         if self.global_excluded.intersects(decided_in) {
             return false;
         }
-        let global_missing = decided_in.missing_count(&self.global_required);
-        if global_missing > budget {
+        if decided_in.missing_count(&self.global_required) > budget {
             return false;
         }
         self.arms.iter().any(|arm| {
-            if arm.require_present.intersects(decided_out) {
-                return false;
-            }
-            if arm.require_absent.intersects(decided_in) {
-                return false;
-            }
-            let mut still_needed = arm.require_present.clone();
-            for index in self.global_required.indices() {
-                still_needed.insert(index);
-            }
-            decided_in.missing_count(&still_needed) <= budget
+            !arm.present_closure.intersects(decided_out)
+                && !arm.absent_closure.intersects(decided_in)
+                && decided_in.missing_count(&arm.present_closure) <= budget
         })
+    }
+
+    /// Fewest further inputs that could still complete this outcome.
+    ///
+    /// `usize::MAX` when no arm survives the current decisions.
+    #[must_use]
+    pub fn shortfall(&self, decided_in: &InputSet, decided_out: &InputSet) -> usize {
+        if self.unconditional || self.covered_by(decided_in) {
+            return 0;
+        }
+        if self.global_excluded.intersects(decided_in) {
+            return usize::MAX;
+        }
+        self.arms
+            .iter()
+            .filter(|arm| {
+                !arm.present_closure.intersects(decided_out)
+                    && !arm.absent_closure.intersects(decided_in)
+            })
+            .map(|arm| decided_in.missing_count(&arm.present_closure))
+            .min()
+            .unwrap_or(usize::MAX)
     }
 }
 
@@ -344,24 +384,31 @@ impl CoverageModel {
 
         let mut rules = Vec::with_capacity(profile.outcomes.len());
         for (index, outcome) in profile.outcomes.iter().enumerate() {
-            let mut arms: Vec<Arm> = groups[index]
-                .values()
-                .map(|(present, absent, path)| Arm {
+            let build_arm = |present: &InputSet, absent: &InputSet, path: &str| {
+                let mut present_closure = present.clone();
+                present_closure.union_with(&global_required[index]);
+                let mut absent_closure = absent.clone();
+                absent_closure.union_with(&global_excluded[index]);
+                Arm {
                     present_indices: present.indices(),
                     absent_indices: absent.indices(),
                     require_present: present.clone(),
                     require_absent: absent.clone(),
-                    path: path.clone(),
-                })
+                    path: path.to_owned(),
+                    present_closure,
+                    absent_closure,
+                }
+            };
+            let mut arms: Vec<Arm> = groups[index]
+                .values()
+                .map(|(present, absent, path)| build_arm(present, absent, path))
                 .collect();
             if required_arm_used[index] {
-                arms.push(Arm {
-                    present_indices: required_arm[index].indices(),
-                    absent_indices: Vec::new(),
-                    require_present: required_arm[index].clone(),
-                    require_absent: InputSet::empty(input_count),
-                    path: String::new(),
-                });
+                arms.push(build_arm(
+                    &required_arm[index],
+                    &InputSet::empty(input_count),
+                    "",
+                ));
             }
             rules.push(OutcomeRule {
                 outcome: index,
@@ -419,7 +466,9 @@ impl CoverageModel {
     /// Total cost of one selection.
     #[must_use]
     pub fn total_cost(&self, selected: &InputSet) -> f64 {
-        selected.indices().into_iter().map(|i| self.costs[i]).sum()
+        let mut total = 0.0;
+        selected.for_each(|index| total += self.costs[index]);
+        total
     }
 
     /// Whether some selection covers this outcome at all.

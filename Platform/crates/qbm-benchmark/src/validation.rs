@@ -101,7 +101,7 @@ pub(crate) fn validate_profile(profile: &BenchmarkProfile) -> Result<(), Benchma
             ));
         }
         if !relationship.path.is_empty() {
-            validate_id("relationship.path", &relationship.path)?;
+            validate_path("relationship.path", &relationship.path)?;
         }
         match (&relationship.context_input_id, relationship.kind) {
             (Some(context), RelationshipKind::Contextual) => {
@@ -291,6 +291,25 @@ fn validate_id(field: &str, value: &str) -> Result<(), BenchmarkError> {
     }) {
         return invalid(format!(
             "{field} must use ASCII letters, digits, '.', '_', ':', '/', or '-'"
+        ));
+    }
+    Ok(())
+}
+
+/// Path labels follow the identifier grammar plus `#`.
+///
+/// Exporters conventionally name an arm after the outcome it belongs to,
+/// `IDA#ferritin_crp`, and rejecting that separator would force every exporter
+/// to rewrite labels that trace back to numbered audit rows.
+fn validate_path(field: &str, value: &str) -> Result<(), BenchmarkError> {
+    if value.is_empty() || value.len() > 256 {
+        return invalid(format!("{field} must contain 1..=256 bytes"));
+    }
+    if !value.bytes().all(|byte| {
+        byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'/' | b'-' | b'#')
+    }) {
+        return invalid(format!(
+            "{field} must use ASCII letters, digits, '.', '_', ':', '/', '-', or '#'"
         ));
     }
     Ok(())

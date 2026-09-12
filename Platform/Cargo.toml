@@ -57,3 +57,14 @@ all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 missing_errors_doc = "allow"
 needless_pass_by_value = "allow"
+
+# The certified solver is a tight bitset search that explores millions of nodes
+# on the reference instance. Unoptimised it turns a twelve-second test suite
+# into a ten-minute one, so it is compiled with optimisation even for tests.
+# This changes speed only: the search is integer-deterministic and returns the
+# same answer at any optimisation level.
+[profile.test.package.qbm-benchmark]
+opt-level = 2
+
+[profile.dev.package.qbm-benchmark]
+opt-level = 2

@@ -1172,6 +1172,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "qbm-app",
+ "qbm-benchmark",
  "qbm-domain",
  "qbm-web",
  "serde",
