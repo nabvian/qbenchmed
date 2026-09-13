@@ -607,12 +607,28 @@ function optimizationSummary(result, workflow = {}) {
   const coverage = (x.coverage_at_k || []).map((point) => coveragePanel(point, x.structural, profile, index)).join("");
   const panels = (x.minimum_panels || []).map((point) => dataRow(`${Math.round(point.coverage_floor * 100)}% floor`, point.result.value?.score?.selected_count ?? "Unavailable", point.result.value ? `${point.result.value.optimality_proven ? "Proven" : "Baseline"} · cost ${formatNumber(point.result.value.score.total_cost)}` : point.result.reason)).join("");
   const reachabilityCeiling = x.structural.total_outcome_weight > 0 ? x.structural.reachable_outcome_weight / x.structural.total_outcome_weight : 0;
-  return `<div class="metric-grid">${metric(x.structural.input_count, "Inputs")}${metric(x.structural.outcome_count, "Outcomes")}${metric(x.structural.inert_inputs.length, "Inert inputs")}${metric(x.structural.unreachable_outcomes.length, "Unreachable outcomes")}</div>
-    <div class="notice-strip reachability-notice"><strong>Structural coverage ceiling: at most ${formatRatio(reachabilityCeiling)}</strong><span>${formatNumber(x.structural.reachable_outcome_weight)} of ${formatNumber(x.structural.total_outcome_weight)} total outcome weight has at least one approved relationship. No optimizer can exceed this upper bound; profile constraints can lower achievable coverage further.</span></div>
+  const st = x.structural;
+  const vetoOnly = (st.veto_only_inputs || []).length;
+  const unconditional = (st.unconditional_outcomes || []).length;
+  return `<div class="metric-grid">${metric(st.input_count, "Inputs")}${metric(st.outcome_count, "Outcomes")}${metric(st.inert_inputs.length, "Inert inputs")}${metric(st.unreachable_outcomes.length, "Unreachable outcomes")}</div>
+    ${ruleShapeNotice(st)}
+    ${vetoOnly || unconditional ? `<section class="section-block"><h3>Other structural findings</h3><div class="data-list">${vetoOnly ? dataRow("Veto-only inputs", vetoOnly, "Mentioned by the rules only to block an outcome or supply context, so selecting one can never grant coverage. Different from inert, which means no rule mentions it at all.") : ""}${unconditional ? dataRow("Unconditional outcomes", unconditional, "Covered by every panel including the empty one. Counted separately because they inflate any coverage ratio without any input earning them.") : ""}</div></section>` : ""}
+    <div class="notice-strip reachability-notice"><strong>Structural coverage ceiling: at most ${formatRatio(reachabilityCeiling)}</strong><span>${formatNumber(x.structural.reachable_outcome_weight)} of ${formatNumber(x.structural.total_outcome_weight)} total outcome weight can be covered by some panel. The rest is out of reach for every selection, usually because an outcome's rule arms can never be satisfied together. No optimizer can exceed this bound; profile constraints can lower it further.</span></div>
     <section class="section-block coverage-results" id="coverage-panel-results" tabindex="-1"><div class="section-heading"><div><p class="eyebrow">Deterministic baseline</p><h3>Complete coverage results at K</h3></div><span class="coverage-score">K is a ceiling</span></div><p><strong>K=5 means “select at most five inputs”; K=10 means “select at most ten.”</strong> It does not request five or ten outcomes, and the returned panel can contain fewer than K inputs. Coverage percentage is weighted by outcome importance; the covered-outcome count is shown separately.</p><div class="coverage-panel-list">${coverage || '<div class="empty-state">No K coverage points were measured.</div>'}</div></section>
     <section class="section-block"><h3>Smallest measured panels</h3><div class="data-list">${panels}</div></section>
     <section class="section-block"><h3>Solver comparison</h3><div class="data-list">${(x.solver_results || []).map((item) => item.value ? dataRow(item.value.solver, `${formatRatio(item.value.score.coverage_fraction)} weighted coverage`, `${item.value.score.selected_count} inputs · ${item.value.optimality_proven ? "optimality proven" : "no proof"}`) : dataRow("Unavailable solver", "Skipped", item.reason)).join("")}</div></section>
     ${(x.limitations || []).length ? `<details class="limitations"><summary>Optimization-wide limitations (${x.limitations.length})</summary><ul>${x.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}`;
+}
+
+// Whether coverage on this profile is a submodular problem, and what follows.
+function ruleShapeNotice(structural) {
+  const arms = structural.arm_count;
+  if (arms == null) return "";
+  const conjunctive = structural.conjunctive_arm_count || 0;
+  if (structural.purely_disjunctive) {
+    return `<div class="notice-strip"><strong>Every outcome is covered by a single input.</strong><span>${arms} rule arms, none needing a combination. Weighted coverage is submodular here, so the greedy baseline carries the classical 1−1/e guarantee and usually lands on or near the certified answer.</span></div>`;
+  }
+  return `<div class="notice-strip express-notice"><strong>${conjunctive} of ${arms} rule arms need several inputs together.</strong><span>Coverage is not submodular on this profile: adding an input can remove coverage, and greedy carries no approximation guarantee. This is the property that makes the choice of optimizer change the answer, which is why the certified solver is worth its runtime here.</span></div>`;
 }
 
 function coveragePanel(point, structural, profile, index) {
@@ -665,8 +681,19 @@ function optimizationConstraintNote(request, constraints) {
 function quboSummary(result) {
   const x = capabilityValue(result);
   if (!x) return skippedSummary(result, "QUBO/Ising validation unavailable");
-  const m = x.metrics || {}; const d = x.difficulty || {};
-  return `<div class="metric-grid">${metric(m.variable_count ?? "—", "Logical variables")}${metric(m.coupling_count ?? "—", "Couplings")}${metric(m.slack_variable_count ?? "—", "Slack variables")}${metric(`${d.score ?? "—"}/100`, "Structural difficulty")}</div><section class="section-block"><h3>Validation and execution boundary</h3><div class="data-list">${dataRow("QUBO → Ising", x.energy_validation ? "Equivalent" : "Not validated", `${x.energy_validation?.assignments_checked || 0} assignments checked · max error ${formatNumber(x.energy_validation?.maximum_absolute_error || 0)}`)}${dataRow("Quantum execution", statusLabel(x.execution?.status || "not_requested"), x.execution?.summary || "Optional provider execution is separate from formulation validation")}${dataRow("Difficulty", d.level || "Unavailable", d.disclaimer || "Not a runtime prediction")}</div></section>`;
+  const m = x.metrics || {}; const d = x.difficulty || {}; const v = x.energy_validation || {};
+  const exportOnly = (x.execution?.status || "not_requested") === "export_only";
+  const checked = v.assignments_checked || 0;
+  const exhaustive = v.exhaustive === true;
+  // 2^n grows past anything worth printing, so say how many were checked and
+  // let the "spot check" label carry the meaning rather than a huge number.
+  const coverageNote = exhaustive
+    ? `every assignment checked · max error ${formatNumber(v.maximum_absolute_error || 0)}`
+    : `spot check of ${checked.toLocaleString()} assignments out of 2^${m.variable_count ?? "?"} · max error ${formatNumber(v.maximum_absolute_error || 0)}`;
+  return `<div class="metric-grid">${metric(m.variable_count ?? "—", "Logical variables")}${metric(m.input_variable_count ?? "—", "Input variables")}${metric(m.arm_variable_count ?? 0, "Arm variables")}${metric(m.slack_variable_count ?? "—", "Slack variables")}</div>
+    ${exportOnly ? '<div class="notice-strip express-notice"><strong>Nothing was run on a quantum computer.</strong><span>This stage builds the QUBO and Ising models and checks that they agree, then exports them. Q-BenchMed contains no provider client and submits no job. Running the formulation is a separate, separately reviewed step.</span></div>' : ""}
+    <section class="section-block"><h3>Validation and execution boundary</h3><div class="data-list">${dataRow("QUBO → Ising", v.maximum_absolute_error === 0 ? "Energies agree" : "Energies differ", coverageNote)}${exhaustive ? "" : dataRow("What that proves", "Agreement on what was checked", "A bounded sample is evidence, not a proof of equivalence over the whole spectrum. The limit and the sample size are recorded so the check can be repeated or widened.")}${dataRow("Quantum execution", statusLabel(x.execution?.status || "not_requested"), x.execution?.summary || "Optional provider execution is separate from formulation validation")}${dataRow("Structural difficulty", `${d.score ?? "—"}/100 · ${d.level || "unavailable"}`, d.disclaimer || "Not a runtime prediction")}</div></section>
+    ${(x.limitations || []).length ? `<details class="limitations"><summary>Formulation limitations (${x.limitations.length})</summary><ul>${x.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}`;
 }
 
 function skippedSummary(result, fallback) { return `<div class="empty-state"><strong>${escapeHtml(fallback)}</strong><br>${escapeHtml(result?.skip_reason || "The required approved semantic input was not available.")}</div>${result?.limitations?.length ? `<details class="limitations" open><summary>Recorded limitations</summary><ul>${result.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}`; }

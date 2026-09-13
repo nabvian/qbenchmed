@@ -25,7 +25,9 @@ Q-BenchMed can:
 - create a reviewable `qbm.profile` containing inputs, outcomes,
   input–outcome relationships, costs, weights, constraints, and provenance;
 - compare compatible approved profile versions;
-- run deterministic exact or heuristic classical baselines;
+- prove the smallest input panel that covers a given share of the declared
+  outcomes, and the best coverage a given panel size can reach;
+- run deterministic exact, certified and heuristic classical baselines;
 - build QUBO and Ising models, check their logical energy equivalence, and
   report structural difficulty; and
 - produce a versioned full report with audit, semantic, profile, comparison,
@@ -44,6 +46,28 @@ not invent the missing semantics.
 Rust and Python are the currently supported source languages. JSON, YAML, and
 TOML are parsed as structured data formats, not treated as programming
 languages.
+
+## Two ways to run
+
+**Express** runs every stage unattended and hands you the report. Same stages,
+same content-addressed outputs, same numbers; the approvals are stamped
+`auto_accepted_by_policy` instead of with a reviewer's name, and the report says
+so wherever it is shown. Use it to get numbers.
+
+**Governed** stops at all fourteen checkpoints and asks you to approve the exact
+bytes. Use it when the result has to carry a human decision.
+
+Express is not a shortcut past safety: blocked inventory entries still stop the
+run and send you to governed mode, because those entries mean the intake policy
+refused something in the source.
+
+```bash
+# headless, one command, prints the full report as JSON
+cargo run -p qbm-cli -- --data-dir .qbenchmed \
+  run express --source /path/to/project
+```
+
+In the browser, the intake card offers the same choice; express is the default.
 
 ## Start the browser UI
 
@@ -113,9 +137,10 @@ biomedical optimization.
 ## Supplying `qbm.profile`
 
 The most reliable path is to export `qbm.profile.json`, `qbm.profile.yaml`, or
-`qbm.profile.yml`. The document must decode exactly as
-`qbm.benchmark-profile/v1`. A document carrying that schema marker is also
-recognized when it has another filename. See the
+`qbm.profile.yml`. The document must decode as `qbm.benchmark-profile/v2`, or
+as `v1`, which is still accepted and means exactly what it always meant. A
+document carrying either schema marker is also recognized when it has another
+filename. See the
 [annotated profile contract](docs/BIOMEDICAL_WORKFLOW.md#the-qbmprofile-contract)
 and the [small NSCLC example](examples/profiles/nsclc-mini.qbm.profile.json).
 
@@ -125,7 +150,17 @@ The profile is intentionally strict:
 - every input has a stable ID, positive cost, label, and sorted tags;
 - every outcome has a stable ID, positive importance weight, label, and sorted
   tags;
-- every relationship is one binary input–outcome incidence;
+- every relationship names one input and one outcome, and may additionally
+  carry a `kind` (`required`, `supporting`, `optional`, `exclusionary`,
+  `contextual`) and a `path`;
+- relationships sharing an outcome and a non-empty `path` form one **arm**: all
+  of them must hold together. An outcome is covered when any one of its arms
+  holds, so an arm is an AND and the set of arms is an OR;
+- an empty `path` means the relationship is its own single-member arm, which is
+  why a `v1` document — where no relationship has a path — behaves exactly as
+  it did;
+- `unconditional_outcomes` names outcomes covered by every panel, including the
+  empty one;
 - constraints can declare selection bounds, a cost ceiling, required/excluded
   inputs, and required outcomes; and
 - provenance names the exporter/revision and immutable supporting artifacts.
@@ -152,23 +187,39 @@ eligible as a future baseline.
 
 Classical analysis measures structural reachability and coverage, then runs:
 
-- exhaustive exact search for at most 20 inputs and at most `2^20` states;
+- exhaustive enumeration for at most 20 inputs and at most `2^20` states;
+- **certified branch-and-bound** over the native integer program, which proves
+  optimality far beyond the exhaustive ceiling;
 - deterministic greedy coverage-per-cost;
 - seeded simulated annealing; and
 - seeded tabu search.
 
-Only a completed exact run can claim `optimality_proven=true`. Heuristic
-results are reproducible baselines, not proofs.
+The coverage sweep and the minimum-panel calculation both use a certified
+solver: exhaustive enumeration where it is cheap, branch-and-bound beyond it.
+Greedy, annealing and tabu appear in the solver comparison as baselines to
+measure that certified answer against.
+
+`optimality_proven=true` means a search closed: every alternative was either
+explored or excluded by a bound that cannot discard the optimum. The certified
+solver reports `false` with its remaining gap when its node budget runs out
+rather than overclaiming, and heuristic results are never marked proven.
+
+The proof covers the approved profile's relationships, costs, weights and
+declared constraints. It is not a statement about anything the profile does not
+contain.
 
 ### Reading the input, outcome, and K results
 
 The completed browser report exposes the complete approved input and outcome
-inventories, not only their counts. Each input is labelled **wired** when at
-least one approved profile relationship connects it to an outcome; otherwise it
-is labelled **inert in this qbm.profile**. Each outcome is labelled
-**reachable** when at least one approved input connects to it; otherwise it is
-**unreachable in this qbm.profile**. These labels describe the approved profile
-only. They do not prove that equivalent logic is absent from unsupported,
+inventories, not only their counts. Each input is labelled **wired** when
+selecting it can advance at least one outcome's rule; **veto-only** when the
+rules mention it solely to block an outcome or to supply another edge's
+context, so selecting it can never grant coverage; and **inert in this
+qbm.profile** when no relationship mentions it at all. Each outcome is labelled
+**reachable** when some panel can cover it; otherwise it is **unreachable in
+this qbm.profile**, which under arm semantics can happen even to an outcome
+several relationships mention, because its arms may never be satisfiable
+together. These labels describe the approved profile only. They do not prove that equivalent logic is absent from unsupported,
 generated, dynamic, or adapter-specific project code.
 
 `K` is an input-panel ceiling, not a requested number of outcomes. A `K=10`
@@ -224,21 +275,28 @@ should also read [Declarative adapter authoring](docs/ADAPTER_AUTHORING.md).
 For a plain-language explanation of full inventories, K panels, and unwired
 records, read [Reading a Q-BenchMed report](docs/READING_A_REPORT.md).
 
-## CLI foundation
+## Command line
 
-The lower-level CLI remains available for inspection and adapter development.
-A minimal source workflow starts with:
+A whole project, unattended:
 
 ```bash
-cargo run -p qbm-cli -- --data-dir .qbenchmed init
-cargo run -p qbm-cli -- --data-dir .qbenchmed \
-  project add demo --name "Demo Project" --source /path/to/project
-cargo run -p qbm-cli -- --data-dir .qbenchmed \
-  run start demo --mode governed
+qbm --data-dir .qbenchmed run express --source /path/to/project
 ```
 
-Use `qbm --help` and command-level help for the current low-level commands. The
-browser is the supported guided path for the complete 14-stage flow.
+A `qbm.profile` document on its own, with no run and no approval ceremony —
+the same kernel and the same numbers, for a shell or for CI:
+
+```bash
+qbm bench check    qbm.profile.json   # validate and report structural facts
+qbm bench analyze  qbm.profile.json   # coverage at K, minimum panels, solvers
+qbm bench solve    qbm.profile.json --solver ilp --max-inputs 10
+qbm bench qubo     qbm.profile.json   # QUBO/Ising sizes and difficulty
+qbm bench compare  before.json after.json
+```
+
+The lower-level commands for stage-by-stage inspection and adapter development
+remain available; see `qbm --help`. The browser is still the guided path for a
+governed 14-stage review.
 
 ## Safety defaults
 

@@ -73,9 +73,12 @@ Record: [docs/MILESTONE_5.md](docs/MILESTONE_5.md)
 
 Status: implemented in source; release verification required
 
-- strict `qbm.benchmark-profile/v1` schema
+- strict `qbm.benchmark-profile/v2` schema with relationship kinds and path
+  groups; `v1` documents still load and still mean what they meant
 - explicit `qbm.profile` JSON/YAML ingestion
-- conservative structured biomedical heuristic
+- conservative structured biomedical heuristic that reads a rule's conditions
+  as a conjunction, so an outcome needing two inputs together is projected as
+  needing them together rather than as two independent edges
 - evidence, diagnostics, confidence, defaults, assumptions, and approval state
 - deterministic stable profile identity for compatible project revisions
 - honest skip artifacts when biomedical semantics are unavailable
@@ -95,18 +98,25 @@ Status: implemented in source; release verification required
 
 Status: implemented in source; release verification required
 
-- structural reachability and density metrics
-- weighted coverage at K and minimum-panel calculation
+- structural reachability and density metrics under typed arm semantics
+- weighted coverage at K and minimum-panel calculation, both certified
 - bounded exhaustive exact search
-- deterministic greedy, seeded simulated annealing, and seeded tabu search
+- certified branch-and-bound over the native integer program, which proves
+  optimality past the exhaustive ceiling and reports its remaining gap rather
+  than overclaiming when its node budget runs out
+- deterministic greedy, seeded simulated annealing, and seeded tabu search as
+  baselines to measure the certified answer against
 - explicit optimality and limitation fields
+- cross-validated against the Python reference implementation on
+  `QBMED-HEME-001`: two unrelated certified searches, identical answers
 
 ## Milestone 9 — QUBO/Ising and optional quantum boundary
 
 Status: logical formulation and provider-neutral contracts implemented;
 provider execution is not implemented in the default workflow
 
-- deterministic QUBO construction and scoring
+- deterministic QUBO construction and scoring, including one arm variable per
+  conjunctive rule arm so the encoded problem is the profile's problem
 - QUBO-to-Ising conversion
 - bounded energy-equivalence validation
 - variable/coupling/range metrics and structural difficulty estimate
@@ -118,6 +128,9 @@ provider execution is not implemented in the default workflow
 
 Status: implemented in source; end-to-end release verification required
 
+- two run modes: governed, which stops for a decision at every material
+  checkpoint, and express, which records and hashes the same outputs and
+  stamps each approval `auto_accepted_by_policy` with the report saying so
 - manual exact-hash approval or rejection at every material checkpoint
 - adapter stages connected to the browser and marked not applicable when no
   adapter is eligible
@@ -133,6 +146,10 @@ Architecture: [docs/BIOMEDICAL_WORKFLOW.md](docs/BIOMEDICAL_WORKFLOW.md)
 
 The following work is intentionally not described as complete:
 
+- **a provider executor.** `QuantumExecutor` is a provider-neutral trait with
+  no implementation outside its own tests. The default workflow is export-only
+  and the report and UI both say so plainly; what is missing is an executor to
+  export *to*, not an honest description of the gap;
 - repeatable end-to-end fixtures for folders, archives, and public GitHub
   across supported operating systems;
 - production biomedical adapter/exporter packages for individual project
