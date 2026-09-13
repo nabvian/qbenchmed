@@ -6,7 +6,7 @@ use std::{
 
 use axum::extract::Multipart;
 use qbm_canonical::hash_value;
-use qbm_domain::{Sha256Digest, SourceAcquisitionKind};
+use qbm_domain::{RunMode, Sha256Digest, SourceAcquisitionKind};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
@@ -107,13 +107,15 @@ impl AcquiredSource {
     }
 }
 
+#[allow(clippy::too_many_lines)] // One pass over the upload's fields; splitting it would scatter the bounds.
 pub(crate) async fn acquire_archive(
     data_directory: &Path,
     mut multipart: Multipart,
     maximum_bytes: u64,
-) -> Result<(AcquiredSource, Option<String>), ApiError> {
+) -> Result<(AcquiredSource, Option<String>, RunMode), ApiError> {
     let staging = StagingDirectory::create(data_directory)?;
     let mut project_name = None;
+    let mut run_mode = RunMode::Governed;
     let mut source = None;
 
     while let Some(mut field) = multipart.next_field().await.map_err(|_| {
@@ -134,6 +136,12 @@ pub(crate) async fn acquire_archive(
                         .trim()
                         .to_owned(),
                 );
+            }
+            Some("run_mode") => {
+                let raw = field.text().await.map_err(|_| {
+                    ApiError::bad_request("invalid_run_mode", "The run mode could not be read.")
+                })?;
+                run_mode = parse_browser_run_mode(raw.trim())?;
             }
             Some("source") => {
                 if source.is_some() {
@@ -211,7 +219,11 @@ pub(crate) async fn acquire_archive(
             "Choose an archive before starting the audit.",
         )
     })?;
-    Ok((source, project_name.filter(|name| !name.is_empty())))
+    Ok((
+        source,
+        project_name.filter(|name| !name.is_empty()),
+        run_mode,
+    ))
 }
 
 #[allow(clippy::too_many_lines)]
@@ -221,9 +233,10 @@ pub(crate) async fn acquire_folder(
     maximum_bytes: u64,
     maximum_files: usize,
     maximum_single_file_bytes: u64,
-) -> Result<(AcquiredSource, Option<String>), ApiError> {
+) -> Result<(AcquiredSource, Option<String>, RunMode), ApiError> {
     let staging = StagingDirectory::create(data_directory)?;
     let mut project_name = None;
+    let mut run_mode = RunMode::Governed;
     let mut paths = None;
     let mut identities = Vec::new();
     let mut total = 0_u64;
@@ -249,6 +262,12 @@ pub(crate) async fn acquire_folder(
                         .trim()
                         .to_owned(),
                 );
+            }
+            Some("run_mode") => {
+                let raw = field.text().await.map_err(|_| {
+                    ApiError::bad_request("invalid_run_mode", "The run mode could not be read.")
+                })?;
+                run_mode = parse_browser_run_mode(raw.trim())?;
             }
             Some("manifest") => {
                 if paths.is_some() {
@@ -380,6 +399,7 @@ pub(crate) async fn acquire_folder(
             suggested_project_name: root_name,
         },
         project_name.filter(|name| !name.is_empty()),
+        run_mode,
     ))
 }
 
@@ -493,6 +513,22 @@ fn unsafe_folder_path() -> ApiError {
         "unsafe_folder_path",
         "The folder contains an unsafe or non-portable relative path.",
     )
+}
+
+/// Run modes the browser may ask for.
+///
+/// Only two of the platform's modes make sense from a browser: review every
+/// checkpoint, or accept them all by policy. The rest are internal audit modes
+/// and are refused here rather than silently mapped onto one of these.
+fn parse_browser_run_mode(value: &str) -> Result<RunMode, ApiError> {
+    match value {
+        "" | "governed" => Ok(RunMode::Governed),
+        "express" => Ok(RunMode::Express),
+        _ => Err(ApiError::bad_request(
+            "unsupported_run_mode",
+            "Choose either the governed or the express run mode.",
+        )),
+    }
 }
 
 #[cfg(test)]

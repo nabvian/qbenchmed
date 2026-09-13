@@ -316,6 +316,13 @@ pub enum RunMode {
     Deep,
     /// Manual governance at every material stage.
     Governed,
+    /// Every material stage recorded, hashed and accepted by policy.
+    ///
+    /// The same stages run and the same outputs are content-addressed; what
+    /// differs is who accepted them. An express approval is stamped with the
+    /// policy actor rather than a person, and the report says so, so a reader
+    /// can always tell a reviewed result from an unattended one.
+    Express,
     /// Audit a later version against an approved baseline.
     Continuous,
 }
@@ -328,6 +335,7 @@ impl fmt::Display for RunMode {
             Self::Standard => "standard",
             Self::Deep => "deep",
             Self::Governed => "governed",
+            Self::Express => "express",
             Self::Continuous => "continuous",
         };
         value.fmt(formatter)
@@ -344,6 +352,7 @@ impl FromStr for RunMode {
             "standard" => Ok(Self::Standard),
             "deep" => Ok(Self::Deep),
             "governed" => Ok(Self::Governed),
+            "express" => Ok(Self::Express),
             "continuous" => Ok(Self::Continuous),
             _ => Err(DomainError::UnknownValue {
                 kind: "run mode",
@@ -515,6 +524,13 @@ pub enum SourceAcquisitionKind {
     UploadedFolder,
     /// An immutable commit archive downloaded from a public GitHub repository.
     PublicGithub,
+    /// A directory on this machine, registered read-only.
+    ///
+    /// Nothing was uploaded and nothing was copied in, so the snapshot's
+    /// content hash is the only identity this source has. A local directory can
+    /// change under the run in a way an uploaded archive cannot, which is why
+    /// it is recorded as its own kind rather than dressed up as an upload.
+    LocalDirectory,
 }
 
 /// Durable provenance for source material copied into platform-managed storage.

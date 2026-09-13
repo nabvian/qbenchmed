@@ -286,6 +286,30 @@ pub(crate) struct GithubImportRequest {
     pub repository_url: String,
     pub reference: Option<String>,
     pub project_name: Option<String>,
+    /// Absent means governed, so an older client keeps its review gates.
+    pub run_mode: Option<BrowserRunMode>,
+}
+
+/// The two run modes a browser may ask for.
+///
+/// The platform has other modes; they are internal audit settings, and a
+/// browser naming one is rejected rather than quietly mapped onto one of these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BrowserRunMode {
+    /// Review the exact bytes at every material checkpoint.
+    Governed,
+    /// Record and hash every stage, accepting each by policy.
+    Express,
+}
+
+impl From<BrowserRunMode> for RunMode {
+    fn from(value: BrowserRunMode) -> Self {
+        match value {
+            BrowserRunMode::Governed => Self::Governed,
+            BrowserRunMode::Express => Self::Express,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

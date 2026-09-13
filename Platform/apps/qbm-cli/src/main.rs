@@ -211,6 +211,12 @@ struct ProjectAdd {
 
 #[derive(Debug, Subcommand)]
 enum RunCommand {
+    /// Run a source through every stage unattended and print the report.
+    ///
+    /// The headless twin of the browser's express mode. Same stages, same
+    /// content hashes; the approvals are stamped by policy rather than by a
+    /// person, and the report says so.
+    Express(ExpressArgs),
     /// Start a new approval-gated analysis run.
     Start {
         /// Registered project ID.
@@ -619,6 +625,19 @@ enum ProjectionCatalogCommand {
     },
 }
 
+#[derive(Debug, Args)]
+struct ExpressArgs {
+    /// Project source directory to analyse. Read-only; never modified.
+    #[arg(long)]
+    source: PathBuf,
+    /// Stable project ID. Derived from the directory name when omitted.
+    #[arg(long)]
+    project_id: Option<String>,
+    /// User-facing project name. Defaults to the directory name.
+    #[arg(long)]
+    name: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum CliRunMode {
     Onboarding,
@@ -626,6 +645,7 @@ enum CliRunMode {
     Standard,
     Deep,
     Governed,
+    Express,
     Continuous,
 }
 
@@ -637,6 +657,7 @@ impl From<CliRunMode> for RunMode {
             CliRunMode::Standard => Self::Standard,
             CliRunMode::Deep => Self::Deep,
             CliRunMode::Governed => Self::Governed,
+            CliRunMode::Express => Self::Express,
             CliRunMode::Continuous => Self::Continuous,
         }
     }
@@ -726,6 +747,20 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             ProjectCommand::Show { project_id } => emit(&app.project(&project_id)?, cli.json),
         },
         Command::Run { command } => match command {
+            RunCommand::Express(arguments) => {
+                let fallback = arguments.source.file_name().map_or_else(
+                    || "project".to_owned(),
+                    |name| name.to_string_lossy().into_owned(),
+                );
+                let display_name = arguments.name.unwrap_or_else(|| fallback.clone());
+                let project_id = arguments
+                    .project_id
+                    .unwrap_or_else(|| portable_project_id(&fallback));
+                emit(
+                    &qbm_web::express_run(&app, &project_id, &display_name, &arguments.source)?,
+                    cli.json,
+                );
+            }
             RunCommand::Start { project_id, mode } => {
                 emit(&app.start_run(&project_id, mode.into())?, cli.json);
             }
@@ -1076,6 +1111,30 @@ fn run_bench(command: BenchCommand, compact: bool) -> Result<(), CliError> {
         }
     }
     Ok(())
+}
+
+/// Derive a portable project ID from a directory name.
+///
+/// The store only accepts a restricted identifier grammar, so anything outside
+/// it becomes a hyphen rather than being rejected back at the user for a
+/// character they did not choose.
+fn portable_project_id(value: &str) -> String {
+    let mapped: String = value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let trimmed = mapped.trim_matches('-');
+    if trimmed.is_empty() {
+        "project".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
 }
 
 fn decide(

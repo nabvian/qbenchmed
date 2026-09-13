@@ -38,10 +38,121 @@ use crate::{
     },
 };
 
+/// Actor recorded on an approval nobody made by hand.
+///
+/// Deliberately not a person's name. Express runs record the same stage
+/// outputs and the same hashes as governed ones; the only thing that differs
+/// is who accepted them, and a reader has to be able to see that at a glance.
+pub const POLICY_ACTOR: &str = "auto_accepted_by_policy";
+
+/// Approve every waiting stage until the run completes or stops advancing.
+///
+/// Stages still run in order, each output is still content-addressed, and a
+/// stage that refuses still refuses. This only removes the wait for a human at
+/// each checkpoint; it cannot make a rejected or blocked run succeed.
+pub(crate) fn run_to_completion(app: &PlatformApp, run_id: RunId) -> Result<(), ApiError> {
+    // One iteration per material stage, with headroom. A bound rather than a
+    // `loop` so a stage that somehow stops making progress fails visibly
+    // instead of spinning.
+    for _ in 0..64 {
+        let view = workflow_view(app, run_id)?;
+        if view.run_state == RunState::Complete {
+            return Ok(());
+        }
+        let Some(stage) = view
+            .stages
+            .iter()
+            .find(|stage| stage.status == StageState::WaitingApproval.to_string())
+        else {
+            return Ok(());
+        };
+        let Some(output) = stage.output.as_ref() else {
+            return Ok(());
+        };
+        if stage.id == "inventory" {
+            // The one gate express does not get to wave through: blocked
+            // entries mean the source contained something the intake policy
+            // refused, and freezing evidence over it would bake that in.
+            if let Some(inventory) = view.inventory.as_ref() {
+                if inventory.blocked_entries > 0 {
+                    return Err(ApiError::unprocessable(
+                        "blocked_inventory",
+                        format!(
+                            "{} unsafe source entries stopped this express run. Re-run in governed mode to review them.",
+                            inventory.blocked_entries
+                        ),
+                    ));
+                }
+            }
+        }
+        decide_and_advance(
+            app,
+            run_id,
+            stage.id,
+            output.output_hash.as_str(),
+            Decision::Approve,
+            POLICY_ACTOR,
+            Some("accepted without review because this run was started in express mode".to_owned()),
+        )?;
+    }
+    Err(ApiError::internal(
+        "The express run did not reach a terminal state within its stage budget.",
+    ))
+}
+
+/// Run a local source through every stage unattended and return the report.
+///
+/// The headless twin of the browser's express mode: same stages, same hashes,
+/// same policy-stamped approvals. It exists so the benchmark can run in CI or
+/// from a shell, which the browser-only path made impossible.
+///
+/// The registered source directory is read, never written.
+pub(crate) fn express_run(
+    app: &PlatformApp,
+    project_id: &str,
+    display_name: &str,
+    source: &std::path::Path,
+) -> Result<ReportBundle, ApiError> {
+    let display_name = normalized_display_name(display_name)?;
+    let project = app.register_project(project_id, &display_name, source)?;
+    let run = app.start_run(project.id.as_str(), RunMode::Express)?;
+    let inventory = app.scan_intake(run.id, &browser_intake_policy())?;
+
+    // Every run is bound to a source acquisition, so the report can always say
+    // where its evidence came from. A local directory was not uploaded, so the
+    // snapshot hash is the only identity it has — recorded as such rather than
+    // dressed up as an upload.
+    let mut acquisition = SourceAcquisition {
+        schema_version: "qbm.source-acquisition/v1".to_owned(),
+        id: Sha256Digest::new("0".repeat(64)).map_err(|_| {
+            ApiError::internal("The acquisition identity could not be initialized.")
+        })?,
+        project_id: project.id,
+        kind: SourceAcquisitionKind::LocalDirectory,
+        source_locator: source.display().to_string(),
+        repository_id: None,
+        requested_revision: None,
+        resolved_revision: None,
+        retrieval_url: None,
+        provider_api_version: None,
+        content_sha256: inventory.inventory_hash.clone(),
+        managed_path: source.to_path_buf(),
+        total_bytes: inventory.total_included_bytes,
+        created_at: chrono::Utc::now(),
+    };
+    acquisition.id = app.calculate_source_acquisition_id(&acquisition)?;
+    let acquisition = app.save_source_acquisition(&acquisition)?;
+    app.bind_run_acquisition(run.id, acquisition.id.as_str())?;
+
+    run_to_completion(app, run.id)?;
+    report_bundle(app, run.id)
+}
+
 pub(crate) fn finish_import(
     app: &PlatformApp,
     source: AcquiredSource,
     requested_name: Option<String>,
+    mode: RunMode,
 ) -> Result<WorkflowView, ApiError> {
     let display_name = normalized_display_name(
         requested_name
@@ -61,7 +172,7 @@ pub(crate) fn finish_import(
     let managed = source.commit(&project_id)?;
 
     let project = app.register_project(&project_id, &display_name, &managed.source_path)?;
-    let run = app.start_run(project.id.as_str(), RunMode::Governed)?;
+    let run = app.start_run(project.id.as_str(), mode)?;
     let inventory = app.scan_intake(run.id, &browser_intake_policy())?;
     if matches!(
         kind,
@@ -95,6 +206,9 @@ pub(crate) fn finish_import(
     acquisition.id = app.calculate_source_acquisition_id(&acquisition)?;
     let acquisition = app.save_source_acquisition(&acquisition)?;
     app.bind_run_acquisition(run.id, acquisition.id.as_str())?;
+    if mode == RunMode::Express {
+        run_to_completion(app, run.id)?;
+    }
     workflow_view(app, run.id)
 }
 

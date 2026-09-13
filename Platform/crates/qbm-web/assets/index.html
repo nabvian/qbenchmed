@@ -22,11 +22,11 @@
     <section class="home-shell" id="home-view" aria-labelledby="home-title">
       <div class="intro-copy">
         <p class="eyebrow">Rust-first · local-first · biomedical optimization</p>
-        <h1 id="home-title">Turn biomedical project evidence into an approved benchmark.</h1>
-        <p class="lede">Import a project, verify what was parsed, approve its inputs, outcomes and relationships, then compare classical and quantum-ready input-panel formulations. Source code is inspected as data and is never executed.</p>
+        <h1 id="home-title">Turn a biomedical project into a benchmark you can prove.</h1>
+        <p class="lede">Point it at a project and it derives the inputs, outcomes and relationships, proves the smallest panel that covers them, and builds the quantum-ready formulation. Run it unattended, or approve every stage yourself. Source code is inspected as data and is never executed.</p>
         <div class="trust-row" aria-label="Safety guarantees">
           <span>✓ Runs on this computer</span>
-          <span>✓ Manual approval gates</span>
+          <span>✓ Approve every stage, or none</span>
           <span>✓ Tamper-evident history</span>
         </div>
       </div>
@@ -34,7 +34,7 @@
       <section class="intake-card" aria-labelledby="intake-title">
         <div class="card-heading">
           <span class="step-badge">01</span>
-          <div><h2 id="intake-title">Choose a biomedical project source</h2><p>One source starts one immutable, approval-gated analysis run.</p></div>
+          <div><h2 id="intake-title">Choose a biomedical project source</h2><p>One source starts one immutable, content-addressed analysis run.</p></div>
         </div>
 
         <fieldset class="source-choices">
@@ -90,6 +90,20 @@
           <input class="text-input" id="github-ref" type="text" placeholder="Default branch" autocomplete="off" spellcheck="false" maxlength="255">
         </div>
 
+        <fieldset class="mode-choices">
+          <legend class="field-label">How should this run be reviewed?</legend>
+          <label class="mode-choice selected">
+            <input type="radio" name="run-mode" value="express" checked>
+            <span><strong>Run it for me</strong><small>Every stage runs and is accepted by policy. Fastest way to numbers.</small></span>
+            <span class="choice-check" aria-hidden="true">✓</span>
+          </label>
+          <label class="mode-choice">
+            <input type="radio" name="run-mode" value="governed">
+            <span><strong>Let me approve each stage</strong><small>You review the exact bytes at all fourteen checkpoints.</small></span>
+            <span class="choice-check" aria-hidden="true">✓</span>
+          </label>
+        </fieldset>
+
         <div class="common-fields">
           <div>
             <label class="field-label" for="project-name">Project name <span>optional</span></label>
@@ -139,7 +153,7 @@
 
       <div class="workspace-grid">
         <aside class="timeline-panel" aria-labelledby="timeline-title">
-          <div class="timeline-heading"><p class="eyebrow">Governed workflow</p><h2 id="timeline-title">Audit stages</h2></div>
+          <div class="timeline-heading"><p class="eyebrow" id="timeline-mode">Workflow</p><h2 id="timeline-title">Audit stages</h2></div>
           <ol class="stage-list" id="stage-list"></ol>
           <div class="integrity-card" id="integrity-card"><span aria-hidden="true">◇</span><div><strong>Event chain</strong><small>Verification pending</small></div></div>
         </aside>

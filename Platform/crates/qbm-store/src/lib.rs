@@ -599,14 +599,29 @@ impl PlatformStore {
         let project = self.get_project(&acquisition.project_id)?;
         let managed_path = acquisition.managed_path.canonicalize()?;
         let project_path = project.source_path.canonicalize()?;
-        let imports_root = self.root.join("imports").canonicalize()?;
-        if project_path != managed_path || !managed_path.starts_with(&imports_root) {
+        // A local directory was never copied in, so it lives wherever the
+        // operator registered it. Everything else was staged by the platform
+        // and must sit under the managed imports root — which only exists once
+        // something has actually been imported.
+        let managed_kind = acquisition.kind != SourceAcquisitionKind::LocalDirectory;
+        let inside_imports = managed_kind
+            && self
+                .root
+                .join("imports")
+                .canonicalize()
+                .is_ok_and(|imports_root| managed_path.starts_with(&imports_root));
+        if project_path != managed_path || (managed_kind && !inside_imports) {
             return Err(StoreError::InvalidRelationship(format!(
-                "source acquisition path {} is not the project's managed import path",
+                "source acquisition path {} is not the project's registered source path",
                 acquisition.managed_path.display()
             )));
         }
         match acquisition.kind {
+            SourceAcquisitionKind::LocalDirectory if !managed_path.is_dir() => {
+                return Err(StoreError::InvalidRelationship(
+                    "local-directory acquisition is not a directory".to_owned(),
+                ));
+            }
             SourceAcquisitionKind::UploadedFolder if !managed_path.is_dir() => {
                 return Err(StoreError::InvalidRelationship(
                     "uploaded-folder acquisition is not a directory".to_owned(),

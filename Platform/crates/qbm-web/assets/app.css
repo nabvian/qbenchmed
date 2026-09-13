@@ -76,6 +76,27 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .choice-check { width: 20px; height: 20px; display: none; place-items: center; margin-left: auto; border-radius: 50%; color: #fff; background: var(--forest); font-size: 11px; }
 .source-choice.selected .choice-check { display: grid; }
 
+/* Review mode sits with the source choices and borrows their affordances, so
+   the two decisions on this card read as one set rather than two designs. */
+.mode-choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 22px 0 4px; padding: 0; border: 0; }
+.mode-choices .field-label { display: block; margin: 0 0 10px; grid-column: 1 / -1; }
+.mode-choice { min-height: 76px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; position: relative; transition: border-color .18s, background .18s, transform .18s; }
+.mode-choice:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+.mode-choice.selected { border: 2px solid var(--forest); background: #f2faf6; padding: 13px 15px; }
+.mode-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.mode-choice:focus-within { outline: 3px solid #1f83a6; outline-offset: 3px; }
+.mode-choice strong, .mode-choice small { display: block; }
+.mode-choice strong { font-size: 14px; }
+.mode-choice small { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+.mode-choice.selected .choice-check { display: grid; }
+@media (max-width: 700px) { .mode-choices { grid-template-columns: 1fr; } }
+
+/* An unattended run says so wherever its report is shown. Amber, not red:
+   nothing is wrong, but the sign-off is different and the reader has to see it
+   without hunting for it. */
+.express-notice { border-color: #d8ac68; background: #fdf7ec; }
+.express-notice code { font-size: 11px; padding: 1px 5px; border-radius: 5px; background: #f2e3c8; }
+
 .source-panel { position: relative; }
 .drop-zone { min-height: 190px; border: 1.5px dashed #9cb9ad; background: #f5fbf8; border-radius: 17px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 28px; cursor: pointer; color: var(--muted); transition: border .18s, background .18s; }
 .drop-zone:hover, .drop-zone.dragging { border-color: var(--forest); background: var(--mint); }

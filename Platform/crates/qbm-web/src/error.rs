@@ -14,6 +14,14 @@ pub struct ApiError {
     message: String,
 }
 
+impl ApiError {
+    /// Safe, human-readable description, for callers outside the HTTP layer.
+    #[must_use]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct ErrorEnvelope<'a> {
     error: ErrorBody<'a>,

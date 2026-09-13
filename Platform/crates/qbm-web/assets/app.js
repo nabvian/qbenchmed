@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { bootstrap: null, workflow: null, sourceType: "archive", busy: false, reportLists: Object.create(null) };
+const state = { bootstrap: null, workflow: null, sourceType: "archive", runMode: "express", busy: false, reportLists: Object.create(null) };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -24,6 +24,7 @@ async function boot() {
 
 function wireEvents() {
   $$('input[name="source-type"]').forEach((input) => input.addEventListener("change", () => selectSource(input.value)));
+  $$('input[name="run-mode"]').forEach((input) => input.addEventListener("change", () => selectRunMode(input.value)));
   $("#archive-file").addEventListener("change", onArchiveSelected);
   $("#folder-files").addEventListener("change", onFolderSelected);
   $("#github-url").addEventListener("input", autofillGithubName);
@@ -42,6 +43,11 @@ function wireEvents() {
     const match = location.hash.match(/^#run\/([0-9a-f-]+)$/i);
     if (match && state.workflow?.run_id !== match[1]) loadRun(match[1]);
   });
+}
+
+function selectRunMode(mode) {
+  state.runMode = mode;
+  $$(".mode-choice").forEach((label) => label.classList.toggle("selected", label.querySelector("input").value === mode));
 }
 
 function selectSource(type) {
@@ -91,18 +97,19 @@ async function startAudit() {
   const projectName = $("#project-name").value.trim();
   state.busy = true;
   setView("processing");
-  $("#processing-phase").textContent = state.sourceType === "github" ? "Resolving the repository to one immutable commit…" : "Uploading and validating the selected source…";
+  const acquiring = state.sourceType === "github" ? "Resolving the repository to one immutable commit…" : "Uploading and validating the selected source…";
+  $("#processing-phase").textContent = state.runMode === "express" ? `${acquiring} Then every stage runs without stopping, which can take a minute on a large profile.` : acquiring;
   try {
     let workflow;
     if (state.sourceType === "archive") {
       const file = $("#archive-file").files[0];
       if (!file) throw new Error("Choose an archive before starting the audit.");
-      const form = new FormData(); if (projectName) form.append("project_name", projectName); form.append("source", file, file.name);
+      const form = new FormData(); if (projectName) form.append("project_name", projectName); form.append("run_mode", state.runMode); form.append("source", file, file.name);
       workflow = await api("/api/import/archive", { method: "POST", body: form });
     } else if (state.sourceType === "folder") {
       const files = Array.from($("#folder-files").files);
       if (!files.length) throw new Error("Choose a folder before starting the audit.");
-      const form = new FormData(); if (projectName) form.append("project_name", projectName);
+      const form = new FormData(); if (projectName) form.append("project_name", projectName); form.append("run_mode", state.runMode);
       form.append("manifest", JSON.stringify({ paths: files.map((file) => file.webkitRelativePath || file.name) }));
       files.forEach((file) => form.append("file", file, file.name));
       workflow = await api("/api/import/folder", { method: "POST", body: form });
@@ -110,7 +117,7 @@ async function startAudit() {
       const repositoryUrl = $("#github-url").value.trim();
       if (!repositoryUrl) throw new Error("Enter a public GitHub repository URL.");
       workflow = await api("/api/import/github", {
-        method: "POST", json: { repository_url: repositoryUrl, reference: $("#github-ref").value.trim() || null, project_name: projectName || null }
+        method: "POST", json: { repository_url: repositoryUrl, reference: $("#github-ref").value.trim() || null, project_name: projectName || null, run_mode: state.runMode }
       });
     }
     state.workflow = workflow;
@@ -133,6 +140,7 @@ function renderWorkflow(workflow) {
   $("#run-source-kind").textContent = sourceKindLabel(workflow.source.kind);
   $("#run-meta").textContent = `${workflow.source.source_locator} · ${shortHash(workflow.source.content_sha256)}`;
   $("#run-status").textContent = statusLabel(workflow.run_state);
+  $("#timeline-mode").textContent = workflow.run_mode === "express" ? "Express workflow" : "Governed workflow";
   $("#integrity-card").innerHTML = `<span aria-hidden="true">${workflow.event_chain_valid ? "✓" : "!"}</span><div><strong>Event chain</strong><small>${workflow.event_chain_valid ? "Verified and continuous" : "Verification failed"}</small></div>`;
   $("#stage-list").innerHTML = workflow.stages.map((stage, index) => {
     const status = stage.status === "approved" && workflow.run_state === "complete" && index === workflow.stages.length - 1 ? "complete" : stage.status;
@@ -200,7 +208,7 @@ function renderComplete(workflow) {
   if (workflow.optimization_download_url) exports.push(`<a class="secondary-download" href="${escapeHtml(workflow.optimization_download_url)}" download>↓ Panel optimization JSON</a>`);
   if (workflow.wiring_diagnostic_download_url) exports.push(`<a class="secondary-download" href="${escapeHtml(workflow.wiring_diagnostic_download_url)}" download>↓ Wiring diagnostics JSON</a>`);
   if (workflow.quantum_export_url) exports.push(`<a class="secondary-download" href="${escapeHtml(workflow.quantum_export_url)}" download>↓ QUBO / Ising formulation</a>`);
-  $("#inspector").innerHTML = `<article class="inspector-card"><header class="completed-hero"><span class="complete-mark" aria-hidden="true">✓</span><p class="eyebrow">Full Q-BenchMed report complete</p><h2 tabindex="-1" id="active-stage-title">${escapeHtml(headline)}</h2><p>Every material result was accepted against its exact content hash. The report distinguishes completed, unavailable and optional checks and preserves the settings needed to reproduce each result.</p><div class="report-actions">${exports.join("")}<button class="quiet-button" type="button" data-new-audit>Analyze another project</button></div></header><div class="inspector-body">${profile ? profileSummary(profileResult, workflow) : `<div class="metric-grid">${metric(summary.critical, "Critical", "critical")}${metric(summary.errors, "Errors", "error")}${metric(summary.warnings, "Warnings", "warning")}${metric(summary.info, "Info", "info")}</div>`}${stageSummary("profile-comparison", workflow)}${stageSummary("classical-optimization", workflow)}${stageSummary("qubo-ising-validation", workflow)}<section class="section-block"><h3>Source audit findings (showing ${Math.min(20, sourceReport.findings.length)} of ${summary.total})</h3>${sourceReport.findings.length > 20 ? '<p>The browser shows the first 20 findings; download the full report JSON for the complete source-finding ledger.</p>' : ""}<div class="finding-list">${sourceReport.findings.length ? sourceReport.findings.slice(0, 20).map(findingCard).join("") : '<div class="empty-state">No findings were produced by the source checks that ran. This is not a claim that the project is error-free.</div>'}</div></section><details class="technical"><summary>Immutable full-report artifact</summary><pre>${escapeHtml(JSON.stringify(full, null, 2))}</pre></details></div></article>`;
+  $("#inspector").innerHTML = `<article class="inspector-card"><header class="completed-hero"><span class="complete-mark" aria-hidden="true">✓</span><p class="eyebrow">Full Q-BenchMed report complete</p><h2 tabindex="-1" id="active-stage-title">${escapeHtml(headline)}</h2><p>Every material result was accepted against its exact content hash. The report distinguishes completed, unavailable and optional checks and preserves the settings needed to reproduce each result.</p>${reviewProvenance(workflow)}<div class="report-actions">${exports.join("")}<button class="quiet-button" type="button" data-new-audit>Analyze another project</button></div></header><div class="inspector-body">${profile ? profileSummary(profileResult, workflow) : `<div class="metric-grid">${metric(summary.critical, "Critical", "critical")}${metric(summary.errors, "Errors", "error")}${metric(summary.warnings, "Warnings", "warning")}${metric(summary.info, "Info", "info")}</div>`}${stageSummary("profile-comparison", workflow)}${stageSummary("classical-optimization", workflow)}${stageSummary("qubo-ising-validation", workflow)}<section class="section-block"><h3>Source audit findings (showing ${Math.min(20, sourceReport.findings.length)} of ${summary.total})</h3>${sourceReport.findings.length > 20 ? '<p>The browser shows the first 20 findings; download the full report JSON for the complete source-finding ledger.</p>' : ""}<div class="finding-list">${sourceReport.findings.length ? sourceReport.findings.slice(0, 20).map(findingCard).join("") : '<div class="empty-state">No findings were produced by the source checks that ran. This is not a claim that the project is error-free.</div>'}</div></section><details class="technical"><summary>Immutable full-report artifact</summary><pre>${escapeHtml(JSON.stringify(full, null, 2))}</pre></details></div></article>`;
   $("[data-new-audit]")?.addEventListener("click", showHome); $("[data-copy-source]")?.addEventListener("click", () => copyText(workflow.source.content_sha256, "Source hash copied"));
   bindReportDrilldowns();
   requestAnimationFrame(() => $("#active-stage-title")?.focus());
@@ -209,9 +217,16 @@ function renderComplete(workflow) {
 function renderSourceOnlyComplete(workflow) {
   const report = workflow.report; const summary = report.summary; const coverage = workflow.audit_coverage; const parser = workflow.graph?.parser_coverage;
   const headline = summary.critical ? "Critical findings need action" : summary.errors ? "Errors found in evaluated structure" : summary.warnings ? "Review recommended" : summary.info ? `${summary.info} informational observation${summary.info === 1 ? "" : "s"}` : "No findings from completed source checks";
-  $("#inspector").innerHTML = `<article class="inspector-card"><header class="completed-hero source-only"><span class="complete-mark" aria-hidden="true">✓</span><p class="eyebrow">Generic source audit complete.</p><h2 tabindex="-1" id="active-stage-title">${escapeHtml(headline)}</h2><p>This legacy/source-only run ended after structural checks. It did not build an approved biomedical profile, compare versions, optimize a panel, or validate QUBO/Ising. Start a new analysis to use the full workflow.</p><div class="report-actions"><a class="download-button" href="${escapeHtml(workflow.report_download_url)}" download>↓ Download source-audit JSON</a><button class="quiet-button" type="button" data-new-audit>Start full analysis</button></div></header><div class="inspector-body"><div class="metric-grid">${metric(summary.critical, "Critical", "critical")}${metric(summary.errors, "Errors", "error")}${metric(summary.warnings, "Warnings", "warning")}${metric(summary.info, "Info", "info")}</div>${parser ? parserCoverage(parser) : ""}${coverage ? checkLedger(coverage) : ""}<section class="section-block"><h3>Findings (${summary.total})</h3><div class="finding-list">${report.findings.length ? report.findings.map(findingCard).join("") : '<div class="empty-state">No findings were produced by the checks that ran. This does not prove the project is correct.</div>'}</div></section></div></article>`;
+  $("#inspector").innerHTML = `<article class="inspector-card"><header class="completed-hero source-only"><span class="complete-mark" aria-hidden="true">✓</span><p class="eyebrow">Generic source audit complete.</p><h2 tabindex="-1" id="active-stage-title">${escapeHtml(headline)}</h2><p>This legacy/source-only run ended after structural checks. It did not build an approved biomedical profile, compare versions, optimize a panel, or validate QUBO/Ising. Start a new analysis to use the full workflow.</p>${reviewProvenance(workflow)}<div class="report-actions"><a class="download-button" href="${escapeHtml(workflow.report_download_url)}" download>↓ Download source-audit JSON</a><button class="quiet-button" type="button" data-new-audit>Start full analysis</button></div></header><div class="inspector-body"><div class="metric-grid">${metric(summary.critical, "Critical", "critical")}${metric(summary.errors, "Errors", "error")}${metric(summary.warnings, "Warnings", "warning")}${metric(summary.info, "Info", "info")}</div>${parser ? parserCoverage(parser) : ""}${coverage ? checkLedger(coverage) : ""}<section class="section-block"><h3>Findings (${summary.total})</h3><div class="finding-list">${report.findings.length ? report.findings.map(findingCard).join("") : '<div class="empty-state">No findings were produced by the checks that ran. This does not prove the project is correct.</div>'}</div></section></div></article>`;
   $("[data-new-audit]")?.addEventListener("click", showHome);
   requestAnimationFrame(() => $("#active-stage-title")?.focus());
+}
+
+function reviewProvenance(workflow) {
+  if (workflow.run_mode !== "express") {
+    return '<div class="notice-strip"><strong>Reviewed at every checkpoint.</strong><span>A person approved each stage output against its exact content hash.</span></div>';
+  }
+  return '<div class="notice-strip express-notice"><strong>Nobody reviewed this run.</strong><span>It was started in express mode, so every stage was accepted by policy and the approvals are stamped <code>auto_accepted_by_policy</code> rather than with a reviewer. The stages, outputs and hashes are the same as a governed run; the sign-off is not. Re-run in governed mode when the result has to carry a human decision.</span></div>';
 }
 
 function stageSummary(id, workflow) {

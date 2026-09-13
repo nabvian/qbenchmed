@@ -37,7 +37,7 @@ use crate::{
     acquisition::{acquire_archive, acquire_folder, acquire_github},
     error::ApiError,
     github::GithubClient,
-    models::{BootstrapView, DecisionRequest, GithubImportRequest},
+    models::{BootstrapView, BrowserRunMode, DecisionRequest, GithubImportRequest},
     workflow::{
         advance_run, approved_optimization_export, approved_profile_export,
         approved_quantum_export, approved_wiring_diagnostic_export, decide_and_advance,
@@ -86,6 +86,30 @@ pub enum WebServerError {
     /// Internal browser-service state could not be initialized.
     #[error("local browser service initialization failed: {0}")]
     Initialization(String),
+    /// An unattended run stopped before producing a report.
+    #[error("{0}")]
+    Express(String),
+}
+
+/// Run a local source through every stage unattended and return the report.
+///
+/// The headless twin of the browser's express mode: the same stages, the same
+/// content hashes, the same report. Approvals are stamped with
+/// [`POLICY_ACTOR`] rather than a person's name, and the report carries that
+/// distinction so an unattended result never reads as a reviewed one.
+///
+/// The registered source directory is read, never written.
+pub fn express_run(
+    app: &PlatformApp,
+    project_id: &str,
+    display_name: &str,
+    source: &std::path::Path,
+) -> Result<serde_json::Value, WebServerError> {
+    let bundle = workflow::express_run(app, project_id, display_name, source)
+        .map_err(|error| WebServerError::Express(error.message().to_owned()))?;
+    serde_json::to_value(bundle).map_err(|error| {
+        WebServerError::Express(format!("the report could not be serialized: {error}"))
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -106,6 +130,8 @@ struct HealthView {
     service: &'static str,
     version: &'static str,
 }
+
+pub use workflow::POLICY_ACTOR;
 
 /// Run the local browser service on `127.0.0.1` until interrupted.
 pub async fn serve(
@@ -230,16 +256,17 @@ async fn import_archive(
 ) -> Result<Json<models::WorkflowView>, ApiError> {
     verify_mutation(&state, &headers)?;
     let _guard = state.import_gate.lock().await;
-    let (source, requested_name) = acquire_archive(
+    let (source, requested_name, mode) = acquire_archive(
         &state.data_directory,
         multipart,
         state.config.max_upload_bytes,
     )
     .await?;
     let app = state.app.clone();
-    let workflow = tokio::task::spawn_blocking(move || finish_import(&app, source, requested_name))
-        .await
-        .map_err(|_| ApiError::internal("The archive audit task stopped unexpectedly."))??;
+    let workflow =
+        tokio::task::spawn_blocking(move || finish_import(&app, source, requested_name, mode))
+            .await
+            .map_err(|_| ApiError::internal("The archive audit task stopped unexpectedly."))??;
     Ok(Json(workflow))
 }
 
@@ -250,7 +277,7 @@ async fn import_folder(
 ) -> Result<Json<models::WorkflowView>, ApiError> {
     verify_mutation(&state, &headers)?;
     let _guard = state.import_gate.lock().await;
-    let (source, requested_name) = acquire_folder(
+    let (source, requested_name, mode) = acquire_folder(
         &state.data_directory,
         multipart,
         state.config.max_upload_bytes,
@@ -259,9 +286,10 @@ async fn import_folder(
     )
     .await?;
     let app = state.app.clone();
-    let workflow = tokio::task::spawn_blocking(move || finish_import(&app, source, requested_name))
-        .await
-        .map_err(|_| ApiError::internal("The folder audit task stopped unexpectedly."))??;
+    let workflow =
+        tokio::task::spawn_blocking(move || finish_import(&app, source, requested_name, mode))
+            .await
+            .map_err(|_| ApiError::internal("The folder audit task stopped unexpectedly."))??;
     Ok(Json(workflow))
 }
 
@@ -280,11 +308,13 @@ async fn import_github(
         state.config.max_upload_bytes,
     )
     .await?;
+    let mode = request.run_mode.unwrap_or(BrowserRunMode::Governed).into();
     let app = state.app.clone();
-    let workflow =
-        tokio::task::spawn_blocking(move || finish_import(&app, source, request.project_name))
-            .await
-            .map_err(|_| ApiError::internal("The GitHub audit task stopped unexpectedly."))??;
+    let workflow = tokio::task::spawn_blocking(move || {
+        finish_import(&app, source, request.project_name, mode)
+    })
+    .await
+    .map_err(|_| ApiError::internal("The GitHub audit task stopped unexpectedly."))??;
     Ok(Json(workflow))
 }
 
@@ -594,11 +624,15 @@ mod tests {
     }
 
     fn archive_multipart(archive: &[u8]) -> (String, Vec<u8>) {
+        archive_multipart_in_mode(archive, "governed")
+    }
+
+    fn archive_multipart_in_mode(archive: &[u8], run_mode: &str) -> (String, Vec<u8>) {
         let boundary = "qbm-browser-test-boundary";
         let mut body = Vec::new();
         write!(
             body,
-            "--{boundary}\r\nContent-Disposition: form-data; name=\"project_name\"\r\n\r\nWeb fixture\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"source\"; filename=\"fixture.zip\"\r\nContent-Type: application/zip\r\n\r\n"
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"project_name\"\r\n\r\nWeb fixture\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"run_mode\"\r\n\r\n{run_mode}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"source\"; filename=\"fixture.zip\"\r\nContent-Type: application/zip\r\n\r\n"
         )
         .unwrap();
         body.extend_from_slice(archive);
@@ -707,6 +741,83 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    /// An express upload needs no approvals and still produces the same report.
+    ///
+    /// The thing worth pinning is not that it finishes — it is that finishing
+    /// unattended leaves a visible mark. Every approval carries the policy
+    /// actor rather than a person's name, so a reader can tell an unreviewed
+    /// result from a reviewed one without being told.
+    #[tokio::test]
+    async fn an_express_upload_completes_without_any_manual_approval() {
+        let directory = TempDir::new().unwrap();
+        let router = test_router(&directory);
+        let csrf = bootstrap_token(&router).await;
+        let archive = zip_bytes(
+            "rules.yaml",
+            b"domain: oncology\nrules:\n  - conditions:\n      all_of:\n        - field: EGFR\n        - field: ALK\n    outcome: targeted_therapy\n",
+        );
+        let (content_type, body) = archive_multipart_in_mode(&archive, "express");
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/import/archive")
+                    .header(HOST, "127.0.0.1:43191")
+                    .header(ORIGIN, "http://127.0.0.1:43191")
+                    .header("X-QBM-CSRF", &csrf)
+                    .header(header::CONTENT_TYPE, content_type)
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // One request in, a finished run out. No decision was ever posted.
+        let workflow = response_json(response).await;
+        assert_eq!(workflow["run_state"], "complete");
+        assert_eq!(workflow["run_mode"], "express");
+        assert_eq!(workflow["event_chain_valid"], true);
+        assert!(workflow["full_report"].is_object());
+
+        let approvals = workflow["approvals"].as_array();
+        if let Some(approvals) = approvals {
+            assert!(!approvals.is_empty());
+            for approval in approvals {
+                assert_eq!(
+                    approval["actor_id"], POLICY_ACTOR,
+                    "an express approval must never carry a person's name"
+                );
+            }
+        }
+    }
+
+    /// An unsupported mode is refused rather than mapped onto a supported one.
+    #[tokio::test]
+    async fn an_unknown_run_mode_is_rejected() {
+        let directory = TempDir::new().unwrap();
+        let router = test_router(&directory);
+        let csrf = bootstrap_token(&router).await;
+        let archive = zip_bytes("rules.yaml", b"domain: oncology\n");
+        let (content_type, body) = archive_multipart_in_mode(&archive, "deep");
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/import/archive")
+                    .header(HOST, "127.0.0.1:43191")
+                    .header(ORIGIN, "http://127.0.0.1:43191")
+                    .header("X-QBM-CSRF", &csrf)
+                    .header(header::CONTENT_TYPE, content_type)
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
