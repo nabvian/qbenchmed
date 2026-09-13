@@ -566,3 +566,108 @@ fn projection_candidate_round_trips_and_revalidates() {
     assert_eq!(candidate, decoded);
     decoded.validate().expect("round-tripped candidate");
 }
+
+#[test]
+fn a_rule_whose_outcome_is_its_own_key_projects_like_any_other() {
+    // Real knowledge bundles routinely name the outcome as the key and put the
+    // condition group directly underneath, with no `conditions` wrapper. A
+    // scanner that only recognised the wrapper read nothing at all from them.
+    let document = yaml_document(
+        "knowledge/rules/aggregation/feature_aggregation.yaml",
+        "artifact-keyed-rules",
+        r"
+domain: haematology
+normalized_flags:
+  MICROCYTIC_THALASSAEMIA_TRIGGER:
+    all_of:
+      - MCV_CLASS == MCV_MICRO
+      - RBC > 5.0
+    source_ref: mvp_v1.txt S2.1
+  RBC_HIGH:
+    any_of:
+      - RBC_CLASS == RBC_HIGH_MALE
+      - RBC_CLASS == RBC_HIGH_FEMALE
+",
+    );
+
+    let candidate = project_documents(&[document]).expect("reviewable projection");
+    let profile = &candidate.profile;
+
+    let outcomes: Vec<_> = profile.outcomes.iter().map(|o| o.id.as_str()).collect();
+    assert_eq!(
+        outcomes,
+        vec!["MICROCYTIC_THALASSAEMIA_TRIGGER", "RBC_HIGH"],
+        "each named condition group is one outcome"
+    );
+    let inputs: Vec<_> = profile.inputs.iter().map(|i| i.id.as_str()).collect();
+    assert_eq!(inputs, vec!["MCV_CLASS", "RBC", "RBC_CLASS"]);
+
+    // The all_of rule is one arm needing both inputs together; the any_of rule
+    // is two single-input arms. Getting that backwards is the whole point.
+    let joined: Vec<_> = profile
+        .relationships
+        .iter()
+        .filter(|r| r.outcome_id == "MICROCYTIC_THALASSAEMIA_TRIGGER")
+        .collect();
+    assert_eq!(joined.len(), 2);
+    assert!(
+        !joined[0].path.is_empty() && joined[0].path == joined[1].path,
+        "an all_of rule must project as one shared arm, got {joined:?}"
+    );
+    // Both alternatives of the any_of test the same input, so they are two
+    // ways of reading one measurement rather than two things to order. Two
+    // single-member arms over the same input collapse to one relationship,
+    // which is the right answer for a panel-selection problem.
+    let alternatives: Vec<_> = profile
+        .relationships
+        .iter()
+        .filter(|r| r.outcome_id == "RBC_HIGH")
+        .collect();
+    assert_eq!(alternatives.len(), 1);
+    assert!(
+        alternatives[0].path.is_empty(),
+        "a single-input arm carries no path"
+    );
+    assert_eq!(alternatives[0].input_id, "RBC_CLASS");
+
+    // Evidence has to point at somewhere a reader can actually open. There is
+    // no `/conditions` element in this document.
+    assert!(
+        candidate
+            .evidence
+            .iter()
+            .all(|e| !e.pointer.contains("/conditions")),
+        "evidence cited a wrapper element the document does not contain"
+    );
+    candidate.validate().expect("candidate invariants");
+}
+
+#[test]
+fn a_mapping_that_merely_mentions_a_grouping_key_is_not_a_rule() {
+    // The structural signal has to be narrow, or any configuration map with an
+    // `all_of` field somewhere inside becomes an invented outcome.
+    let document = yaml_document(
+        "config/settings.yaml",
+        "artifact-not-rules",
+        r"
+domain: oncology
+retry_policy:
+  all_of: [a, b]
+  backoff_seconds: 30
+  endpoint_label: primary
+",
+    );
+    let projection = project_documents(&[document]);
+    // Either it refuses to project at all, or it certainly does not invent an
+    // outcome named after a retry policy.
+    if let Ok(candidate) = projection {
+        assert!(
+            !candidate
+                .profile
+                .outcomes
+                .iter()
+                .any(|o| o.id == "retry_policy"),
+            "a settings mapping was mistaken for a rule"
+        );
+    }
+}

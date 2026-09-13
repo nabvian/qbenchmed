@@ -112,11 +112,22 @@ pub(crate) fn express_run(
     project_id: &str,
     display_name: &str,
     source: &std::path::Path,
+    excluded_names: &[String],
 ) -> Result<ReportBundle, ApiError> {
     let display_name = normalized_display_name(display_name)?;
     let project = app.register_project(project_id, &display_name, source)?;
     let run = app.start_run(project.id.as_str(), RunMode::Express)?;
-    let inventory = app.scan_intake(run.id, &browser_intake_policy())?;
+    // Real biomedical projects carry datasets, model weights and installers
+    // beside their knowledge files. Those are not evidence about decision
+    // logic, and the intake ceiling counts cumulative bytes, so one unexcluded
+    // data directory can push every later file past the limit. Naming them
+    // here keeps them out of the inventory as a recorded exclusion rather than
+    // letting them stop the run.
+    let mut policy = browser_intake_policy();
+    for name in excluded_names {
+        policy.excluded_names.insert(name.clone());
+    }
+    let inventory = app.scan_intake(run.id, &policy)?;
 
     // Every run is bound to a source acquisition, so the report can always say
     // where its evidence came from. A local directory was not uploaded, so the

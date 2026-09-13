@@ -99,7 +99,11 @@ impl Default for ProfilerLimits {
         Self {
             max_documents: 128,
             max_value_depth: 64,
-            max_value_elements: 250_000,
+            // A real knowledge bundle is hundreds of files deep. At 250_000
+            // the profiler refused four of the projects it was pointed at
+            // purely on size, having understood them perfectly well. The bound
+            // exists to stop unbounded work, not to cap a project's ambition.
+            max_value_elements: 4_000_000,
             max_total_string_bytes: 16 * 1024 * 1024,
             max_rules: 8_192,
             max_inputs: 16_384,

@@ -104,8 +104,9 @@ pub fn express_run(
     project_id: &str,
     display_name: &str,
     source: &std::path::Path,
+    excluded_names: &[String],
 ) -> Result<serde_json::Value, WebServerError> {
-    let bundle = workflow::express_run(app, project_id, display_name, source)
+    let bundle = workflow::express_run(app, project_id, display_name, source, excluded_names)
         .map_err(|error| WebServerError::Express(error.message().to_owned()))?;
     serde_json::to_value(bundle).map_err(|error| {
         WebServerError::Express(format!("the report could not be serialized: {error}"))

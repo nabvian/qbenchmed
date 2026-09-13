@@ -636,6 +636,13 @@ struct ExpressArgs {
     /// User-facing project name. Defaults to the directory name.
     #[arg(long)]
     name: Option<String>,
+    /// Directory or file name to skip at any depth. Repeatable.
+    ///
+    /// Use it for datasets, model weights and build output that sit beside a
+    /// project's knowledge files. Exclusions are recorded in the inventory, so
+    /// the report always states what was left out.
+    #[arg(long = "exclude-name")]
+    exclude_name: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -757,7 +764,13 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                     .project_id
                     .unwrap_or_else(|| portable_project_id(&fallback));
                 emit(
-                    &qbm_web::express_run(&app, &project_id, &display_name, &arguments.source)?,
+                    &qbm_web::express_run(
+                        &app,
+                        &project_id,
+                        &display_name,
+                        &arguments.source,
+                        &arguments.exclude_name,
+                    )?,
                     cli.json,
                 );
             }

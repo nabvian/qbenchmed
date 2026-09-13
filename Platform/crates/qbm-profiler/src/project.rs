@@ -627,6 +627,24 @@ fn scan_value(
                 let child_pointer = join_pointer(pointer, key);
                 if key == "rules" {
                     scan_rule_container(&object[key], &child_pointer, document, state, limits)?;
+                } else if let Value::Object(entry) = &object[key]
+                    && !is_condition_wrapper_key(key)
+                {
+                    // A named entry whose body *is* a condition group is a rule
+                    // whose outcome is its own key:
+                    //
+                    //     RBC_MICROCYTIC_TRIGGER:
+                    //       all_of: [MCV_CLASS == MCV_MICRO, RBC > 5.0]
+                    //
+                    // Real knowledge bundles are written this way at least as
+                    // often as they use an explicit `conditions` key, and a
+                    // scanner that only recognised the latter read nothing at
+                    // all from them. The signal is structural: a grouping
+                    // operator directly under a named key. No identifier is
+                    // interpreted to decide it.
+                    if is_condition_group(entry) {
+                        scan_keyed_rule(key, entry, &child_pointer, document, state, limits)?;
+                    }
                 }
                 scan_value(&object[key], &child_pointer, document, state, limits)?;
             }
@@ -796,25 +814,117 @@ fn scan_rule_container(
                         document,
                         state,
                         limits,
+                        None,
                     )?;
                 }
             }
         }
         Value::Object(rule_or_map) if rule_or_map.contains_key("conditions") => {
-            scan_rule(rule_or_map, pointer, document, state, limits)?;
+            scan_rule(rule_or_map, pointer, document, state, limits, None)?;
         }
         Value::Object(rule_map) => {
             let mut keys: Vec<_> = rule_map.keys().collect();
             keys.sort_unstable();
             for key in keys {
                 if let Value::Object(rule) = &rule_map[key] {
-                    scan_rule(rule, &join_pointer(pointer, key), document, state, limits)?;
+                    scan_rule(
+                        rule,
+                        &join_pointer(pointer, key),
+                        document,
+                        state,
+                        limits,
+                        None,
+                    )?;
                 }
             }
         }
         _ => {}
     }
     Ok(())
+}
+
+/// Whether a key names a condition wrapper rather than an outcome.
+///
+/// `conditions:` holds a condition group, so it satisfies every structural
+/// test for a keyed rule while naming no outcome at all. Treating it as one
+/// would invent an outcome called "conditions" and project every explicit rule
+/// twice.
+fn is_condition_wrapper_key(key: &str) -> bool {
+    matches!(
+        key,
+        "all"
+            | "all_of"
+            | "and"
+            | "any"
+            | "any_of"
+            | "conditions"
+            | "either"
+            | "none_of"
+            | "not"
+            | "one_of"
+            | "or"
+            | "rules"
+            | "unless"
+            | "when"
+    )
+}
+
+/// Whether this object is a condition group rather than an ordinary mapping.
+///
+/// Deliberately strict: the object must consist only of grouping operators and
+/// a small set of provenance keys, so an arbitrary mapping that happens to
+/// contain an `all_of` field somewhere is not mistaken for a rule.
+fn is_condition_group(object: &Map<String, Value>) -> bool {
+    const GROUPING: &[&str] = &[
+        "all", "all_of", "and", "any", "any_of", "either", "none_of", "not", "one_of", "or",
+        "unless",
+    ];
+    const TOLERATED: &[&str] = &[
+        "comment",
+        "description",
+        "note",
+        "notes",
+        "priority",
+        "source_ref",
+        "status",
+    ];
+    let mut grouping_seen = false;
+    for key in object.keys() {
+        if GROUPING.contains(&key.as_str()) {
+            grouping_seen = true;
+        } else if !TOLERATED.contains(&key.as_str()) {
+            return false;
+        }
+    }
+    grouping_seen
+}
+
+/// Project a rule whose emitted outcome is the key its conditions sit under.
+fn scan_keyed_rule(
+    outcome_key: &str,
+    conditions: &Map<String, Value>,
+    pointer: &str,
+    document: &SourceDocument,
+    state: &mut ScanState,
+    limits: ProfilerLimits,
+) -> Result<(), ProfilerError> {
+    let outcome_point = SourcePoint::new(document, pointer);
+    if !valid_profile_id(outcome_key) {
+        state.diagnostic(
+            "invalid_structured_id",
+            DiagnosticSeverity::Warning,
+            format!("Ignored keyed rule outcome identity {outcome_key:?}"),
+            "/ignored/outcome",
+            vec![outcome_point],
+        );
+        return Ok(());
+    }
+    // Rebuild it into the shape scan_rule already understands, so both
+    // spellings project through exactly one code path and cannot drift apart.
+    let mut rule = Map::new();
+    rule.insert("conditions".to_owned(), Value::Object(conditions.clone()));
+    rule.insert("outcome".to_owned(), Value::String(outcome_key.to_owned()));
+    scan_rule(&rule, pointer, document, state, limits, Some(pointer))
 }
 
 #[allow(clippy::too_many_lines)] // Reading one rule end to end is what makes its projection auditable.
@@ -824,6 +934,12 @@ fn scan_rule(
     document: &SourceDocument,
     state: &mut ScanState,
     limits: ProfilerLimits,
+    // Where the conditions really live in the source document. A keyed rule's
+    // conditions sit directly under its own key, with no `conditions` wrapper,
+    // so deriving the pointer here would cite an element that does not exist.
+    // Every piece of evidence this crate emits has to point at something a
+    // reader can actually open.
+    condition_pointer: Option<&str>,
 ) -> Result<(), ProfilerError> {
     state.rules_seen = state.rules_seen.saturating_add(1);
     if state.rules_seen > limits.max_rules {
@@ -842,7 +958,8 @@ fn scan_rule(
 
     // The conditions of one rule hold together, so they describe one arm of
     // the outcome, not one independent edge each.
-    let condition_pointer = join_pointer(pointer, "conditions");
+    let condition_pointer =
+        condition_pointer.map_or_else(|| join_pointer(pointer, "conditions"), ToOwned::to_owned);
     let dnf = {
         let mut resolve =
             |value: &Value, node_pointer: &str, doc: &SourceDocument, strings_are_atoms: bool| {
@@ -2085,12 +2202,66 @@ fn valid_text(value: &str) -> bool {
         && !value.chars().any(char::is_control)
 }
 
+/// Whether a declared context value places a project inside biomedicine.
+///
+/// This is the gate that stops an arbitrary configuration file from being read
+/// as clinical decision logic, so it stays a fixed vocabulary rather than a
+/// guess. It was originally almost entirely oncology, which made a framework
+/// billed as domain-general refuse every haematology, pathology and radiology
+/// project it was pointed at.
+///
+/// Terms are matched as substrings, so every one has to be long and
+/// distinctive enough that it cannot appear inside an ordinary word. `gene`
+/// would match `generic` and `generated`; stems like `genomic` and `patholog`
+/// do not. Nothing shorter than six characters belongs in this list.
 fn is_biomedical_context(value: &str) -> bool {
     let normalized = value.to_ascii_lowercase();
     [
+        // General
         "biomedical",
         "biomedicine",
         "clinical",
+        "diagnos",
+        "disease",
+        "patient",
+        "phenotyp",
+        "biomarker",
+        "specimen",
+        // Laboratory and pathology
+        "patholog",
+        "haematolog",
+        "hematolog",
+        "histolog",
+        "cytolog",
+        "serolog",
+        "immunolog",
+        "microbiolog",
+        "toxicolog",
+        // Imaging
+        "radiolog",
+        "radiograph",
+        // Clinical specialties
+        "cardiolog",
+        "neurolog",
+        "endocrinolog",
+        "nephrolog",
+        "hepatolog",
+        "dermatolog",
+        "ophthalmolog",
+        "gynaecolog",
+        "gynecolog",
+        "obstetric",
+        "paediatric",
+        "pediatric",
+        "psychiatr",
+        "pharmacolog",
+        "epidemiolog",
+        // Molecular
+        "genomic",
+        "proteomic",
+        "metabolomic",
+        "transcriptomic",
+        // Oncology
         "oncology",
         "cancer",
         "tumor",
