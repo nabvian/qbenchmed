@@ -234,6 +234,29 @@ semantic layer ran. When no eligible declarative adapter was selected, that
 layer is recorded as skipped with its reason; the approved profile may still
 come from an explicit profile document or the conservative built-in profiler.
 
+### The formulation check
+
+Energy equivalence shows the QUBO and Ising forms agree with each other. Both
+could agree on the wrong problem. So the exported model is also *solved* — by
+`LocalIsingExecutor`, a deterministic classical minimiser running on this
+machine — and its lowest-energy assignment is decoded back into an input panel
+and compared with what the certified native solver proves.
+
+- **confirmed** — the minimum decodes to the certified panel. The export
+  demonstrably encodes the profile's problem.
+- **contradicted** — the minimum was *proven* and decodes to a different panel.
+  The encoding is wrong; treat the export as unusable.
+- **inconclusive** — the solver could not prove its minimum and fell short. That
+  is a statement about the search, not the encoding. Constrained-coverage QUBOs
+  put their penalty terms far above their reward terms, and a generic solver
+  struggling with one is a known property of the formulation.
+
+This backend is classical. It is declared `BackendKind::Simulator`, it runs the
+logical model only — no hardware embedding, no noise, no physical sampling —
+and no result from it is evidence of quantum advantage. Submitting to actual
+quantum hardware still needs a separately reviewed provider integration, which
+this repository does not contain.
+
 The next stage converts the approved formulation to QUBO and Ising forms,
 checks their energies under bounded deterministic assignments, and reports
 model size, coefficient ranges, couplings, and a structural difficulty estimate.

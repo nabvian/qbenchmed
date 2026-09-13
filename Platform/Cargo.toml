@@ -68,3 +68,11 @@ opt-level = 2
 
 [profile.dev.package.qbm-benchmark]
 opt-level = 2
+
+# The local Ising solver is the same kind of tight search loop, for the same
+# reason.
+[profile.test.package.qbm-quantum]
+opt-level = 2
+
+[profile.dev.package.qbm-quantum]
+opt-level = 2

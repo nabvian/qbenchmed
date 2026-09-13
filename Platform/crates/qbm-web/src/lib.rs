@@ -1129,7 +1129,24 @@ mod tests {
                 .unwrap()
                 <= f64::EPSILON
         );
-        assert_eq!(export["formulation"]["execution"]["status"], "export_only");
+        // A local classical solver is configured, so execution is "ready" — but
+        // it must be impossible to read that as quantum hardware being wired up.
+        let execution = &export["formulation"]["execution"];
+        assert_eq!(execution["status"], "ready");
+        assert_eq!(execution["backend"]["backend_kind"], "simulator");
+        assert!(
+            execution["summary"]
+                .as_str()
+                .unwrap()
+                .contains("no quantum provider is configured")
+        );
+        let backend_limits = execution["backend"]["limitations"].to_string();
+        assert!(backend_limits.contains("not a quantum processor"));
+
+        // And the model it exported must decode back to the certified panel.
+        let check = &export["formulation"]["formulation_check"];
+        assert_eq!(check["status"], "complete");
+        assert_eq!(check["value"]["verdict"], "confirmed");
     }
 
     #[tokio::test]

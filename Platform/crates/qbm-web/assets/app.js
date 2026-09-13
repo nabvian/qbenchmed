@@ -682,7 +682,9 @@ function quboSummary(result) {
   const x = capabilityValue(result);
   if (!x) return skippedSummary(result, "QUBO/Ising validation unavailable");
   const m = x.metrics || {}; const d = x.difficulty || {}; const v = x.energy_validation || {};
-  const exportOnly = (x.execution?.status || "not_requested") === "export_only";
+  const execution = x.execution || {};
+  const backend = execution.backend || {};
+  const check = capabilityValue(x.formulation_check);
   const checked = v.assignments_checked || 0;
   const exhaustive = v.exhaustive === true;
   // 2^n grows past anything worth printing, so say how many were checked and
@@ -691,9 +693,34 @@ function quboSummary(result) {
     ? `every assignment checked · max error ${formatNumber(v.maximum_absolute_error || 0)}`
     : `spot check of ${checked.toLocaleString()} assignments out of 2^${m.variable_count ?? "?"} · max error ${formatNumber(v.maximum_absolute_error || 0)}`;
   return `<div class="metric-grid">${metric(m.variable_count ?? "—", "Logical variables")}${metric(m.input_variable_count ?? "—", "Input variables")}${metric(m.arm_variable_count ?? 0, "Arm variables")}${metric(m.slack_variable_count ?? "—", "Slack variables")}</div>
-    ${exportOnly ? '<div class="notice-strip express-notice"><strong>Nothing was run on a quantum computer.</strong><span>This stage builds the QUBO and Ising models and checks that they agree, then exports them. Q-BenchMed contains no provider client and submits no job. Running the formulation is a separate, separately reviewed step.</span></div>' : ""}
-    <section class="section-block"><h3>Validation and execution boundary</h3><div class="data-list">${dataRow("QUBO → Ising", v.maximum_absolute_error === 0 ? "Energies agree" : "Energies differ", coverageNote)}${exhaustive ? "" : dataRow("What that proves", "Agreement on what was checked", "A bounded sample is evidence, not a proof of equivalence over the whole spectrum. The limit and the sample size are recorded so the check can be repeated or widened.")}${dataRow("Quantum execution", statusLabel(x.execution?.status || "not_requested"), x.execution?.summary || "Optional provider execution is separate from formulation validation")}${dataRow("Structural difficulty", `${d.score ?? "—"}/100 · ${d.level || "unavailable"}`, d.disclaimer || "Not a runtime prediction")}</div></section>
+    <div class="notice-strip express-notice"><strong>Nothing was run on a quantum computer.</strong><span>${escapeHtml(quantumBoundaryText(execution, backend))}</span></div>
+    ${formulationVerdict(check, x.formulation_check)}
+    <section class="section-block"><h3>Validation and execution boundary</h3><div class="data-list">${dataRow("QUBO → Ising", v.maximum_absolute_error === 0 ? "Energies agree" : "Energies differ", coverageNote)}${exhaustive ? "" : dataRow("What that proves", "Agreement on what was checked", "A bounded sample is evidence, not a proof of equivalence over the whole spectrum. The limit and the sample size are recorded so the check can be repeated or widened.")}${dataRow("Execution backend", backend.display_name || statusLabel(execution.status || "not_requested"), execution.summary || "Optional provider execution is separate from formulation validation")}${dataRow("Structural difficulty", `${d.score ?? "—"}/100 · ${d.level || "unavailable"}`, d.disclaimer || "Not a runtime prediction")}</div></section>
     ${(x.limitations || []).length ? `<details class="limitations"><summary>Formulation limitations (${x.limitations.length})</summary><ul>${x.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}`;
+}
+
+// The one sentence that must never be ambiguous, whatever else is on screen.
+function quantumBoundaryText(execution, backend) {
+  if ((execution.status || "not_requested") !== "ready") {
+    return "This stage builds the QUBO and Ising models and checks that they agree, then exports them. Q-BenchMed contains no provider client and submits no job.";
+  }
+  const name = backend.display_name || "a local solver";
+  return `The model was minimised by ${name} running on this computer. That is a classical search over the logical model — no provider client, no hardware embedding, no job leaving this machine, and no evidence of quantum advantage.`;
+}
+
+// Whether the exported model provably encodes the problem the profile states.
+function formulationVerdict(check, wrapper) {
+  if (!check) {
+    return `<div class="notice-strip"><strong>Formulation check not run.</strong><span>${escapeHtml(wrapper?.reason || "The exported model was not minimised.")}</span></div>`;
+  }
+  const shortfall = formatNumber(check.coverage_shortfall || 0);
+  if (check.verdict === "confirmed") {
+    return `<div class="notice-strip"><strong>The exported model encodes the right problem.</strong><span>Minimising it ${check.minimum_proven ? "to a proven minimum " : ""}and decoding the result gives the same panel the certified solver proves: ${check.decoded_inputs.length} input${check.decoded_inputs.length === 1 ? "" : "s"} covering ${formatNumber(check.decoded_covered_weight)} outcome weight. An encoding can be self-consistent and still describe the wrong problem; this is the check that would catch that.</span></div>`;
+  }
+  if (check.verdict === "contradicted") {
+    return `<div class="inline-alert"><strong>The exported model does not encode this profile.</strong><span> Its minimum was proven, and it decodes to a panel covering ${formatNumber(check.decoded_covered_weight)} where the certified answer covers ${formatNumber(check.certified_covered_weight)}. Treat the QUBO/Ising export as unusable until this is resolved.</span></div>`;
+  }
+  return `<div class="notice-strip express-notice"><strong>Formulation check inconclusive — the reference solver fell ${shortfall} short.</strong><span>It reached ${formatNumber(check.decoded_covered_weight)} of the certified ${formatNumber(check.certified_covered_weight)} outcome weight, without proving its minimum. That is a statement about the search, not about the encoding: a constrained-coverage QUBO puts its penalty terms far above its reward terms, and a generic solver struggling with one is a known property of this formulation rather than a defect in it.</span></div>`;
 }
 
 function skippedSummary(result, fallback) { return `<div class="empty-state"><strong>${escapeHtml(fallback)}</strong><br>${escapeHtml(result?.skip_reason || "The required approved semantic input was not available.")}</div>${result?.limitations?.length ? `<details class="limitations" open><summary>Recorded limitations</summary><ul>${result.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></details>` : ""}`; }

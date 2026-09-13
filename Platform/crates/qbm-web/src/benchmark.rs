@@ -7,8 +7,8 @@ use qbm_benchmark::{
     minimum_panel, solve, structural_metrics,
 };
 use qbm_quantum::{
-    EnergyEquivalenceConfig, EnergyEquivalenceReport, ExecutionReadiness,
-    validate_energy_equivalence,
+    EnergyEquivalenceConfig, EnergyEquivalenceReport, ExecutionReadiness, LocalIsingExecutor,
+    QuantumExecutor, QuantumProblem, validate_energy_equivalence,
 };
 use serde::{Deserialize, Serialize};
 
@@ -138,6 +138,62 @@ pub(crate) struct ProfileComparisonArtifact {
     pub limitations: Vec<String>,
 }
 
+/// Does the exported model describe the problem the profile states?
+///
+/// Energy equivalence only shows the QUBO and Ising forms agree with each
+/// other. Both could agree on the wrong problem. This solves the exported model
+/// outright, decodes its lowest-energy assignment back to an input panel, and
+/// compares that panel with what the certified native solver proves — the one
+/// check that can catch an encoding which is internally consistent and still
+/// wrong.
+/// What a formulation check established, which is not always a yes or a no.
+///
+/// Collapsing this to a boolean was the first thing that went wrong: a
+/// reference solver falling short on a model it could not prove looks
+/// identical to a broken encoding, and they call for completely different
+/// responses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum FormulationVerdict {
+    /// The minimum was proven and decodes to the certified panel. The exported
+    /// model demonstrably encodes the profile's problem.
+    Confirmed,
+    /// The minimum was proven and decodes to a *different* panel. The encoding
+    /// is wrong, and this is the finding the check exists to catch.
+    Contradicted,
+    /// The reference solver could not prove its minimum and fell short of the
+    /// certified answer. That is a statement about the search, or about how
+    /// hard this formulation is to solve — not evidence the encoding is wrong.
+    Inconclusive,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct FormulationCheck {
+    /// Backend that minimised the model. Always a local classical solver here.
+    pub backend_id: String,
+    /// Whether the reported minimum is proven rather than best-found.
+    pub minimum_proven: bool,
+    /// Panel the lowest-energy assignment decodes to.
+    pub decoded_inputs: Vec<String>,
+    /// Native coverage weight of that panel.
+    pub decoded_covered_weight: f64,
+    /// Panel the certified native solver proves optimal at the same ceiling.
+    pub certified_inputs: Vec<String>,
+    /// Native coverage weight of the certified panel.
+    pub certified_covered_weight: f64,
+    /// What the comparison actually established.
+    pub verdict: FormulationVerdict,
+    /// Coverage weight the decoded panel fell short by, never negative.
+    pub coverage_shortfall: f64,
+    /// Energy of the assignment that was decoded.
+    pub minimum_energy: f64,
+    /// Distinct assignments the solver returned.
+    pub samples_returned: usize,
+    /// Honest scope of what this check does and does not show.
+    pub limitations: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct QuboValidationArtifact {
@@ -149,6 +205,7 @@ pub(crate) struct QuboValidationArtifact {
     pub metrics: QuboMetrics,
     pub difficulty: DifficultyEstimate,
     pub energy_validation: EnergyEquivalenceReport,
+    pub formulation_check: Measured<FormulationCheck>,
     pub execution: ExecutionReadiness,
     pub limitations: Vec<String>,
 }
@@ -344,7 +401,17 @@ pub(crate) fn validate_qubo_profile(
     let energy_validation =
         validate_energy_equivalence(&qubo, &ising, EnergyEquivalenceConfig::default())
             .map_err(|error| error.to_string())?;
-    let execution = ExecutionReadiness::export_only();
+    // Solve the exported model and see whether it decodes back to the answer
+    // the certified native solver proves. Nothing else in the pipeline can
+    // catch an encoding that is internally consistent and still wrong.
+    let executor = LocalIsingExecutor::default();
+    let formulation_check = measured_string(check_formulation(&executor, profile, &qubo, &request));
+    // "Ready" is true — an executor is configured — but the word alone could be
+    // read as "ready to run on a quantum computer", which is the one thing it
+    // does not mean. The summary says what is actually available.
+    let mut execution = ExecutionReadiness::ready(executor.capability().clone());
+    "a local classical solver can minimise this logical model; no quantum provider is configured and nothing leaves this machine"
+        .clone_into(&mut execution.summary);
     execution.validate().map_err(|error| error.to_string())?;
     Ok(QuboValidationArtifact {
         schema_version: "qbm.qubo-ising-validation/v1".to_owned(),
@@ -355,6 +422,7 @@ pub(crate) fn validate_qubo_profile(
         metrics,
         difficulty,
         energy_validation,
+        formulation_check,
         execution,
         limitations: vec![
             "Validation covers the logical QUBO/Ising mapping; it does not perform hardware embedding, calibration or provider execution.".to_owned(),
@@ -362,6 +430,97 @@ pub(crate) fn validate_qubo_profile(
             "A structural difficulty score is not a runtime, solution-quality or quantum-advantage prediction.".to_owned(),
         ],
     })
+}
+
+/// Minimise the exported model and compare the decoded panel with the proof.
+fn check_formulation(
+    executor: &LocalIsingExecutor,
+    profile: &BenchmarkProfile,
+    qubo: &QuboModel,
+    request: &OptimizationRequest,
+) -> Result<FormulationCheck, String> {
+    let problem = QuantumProblem::Qubo(qubo.clone());
+    let variables = qubo.variables.len();
+    if variables > executor.config().maximum_variables {
+        return Err(format!(
+            "the model has {variables} variables, above this backend's {} limit",
+            executor.config().maximum_variables
+        ));
+    }
+    let samples = executor
+        .minimize(&problem, 4, SolverConfig::default().default_seed)
+        .map_err(|error| error.to_string())?;
+    let (assignment, minimum_energy, _) = samples
+        .first()
+        .ok_or_else(|| "the solver returned no assignment".to_owned())?;
+
+    let decoded = qubo
+        .native_rescore(profile, assignment)
+        .map_err(|error| error.to_string())?;
+    let certified = solve(
+        profile,
+        &OptimizationRequest {
+            solver: SolverKind::Ilp,
+            ..request.clone()
+        },
+        &SolverConfig::default(),
+    )
+    .map_err(|error| error.to_string())?;
+
+    let minimum_proven = executor.proves_minimum(variables);
+    let matches = (decoded.covered_weight - certified.score.covered_weight).abs() < 1e-9;
+    let verdict = match (minimum_proven, matches) {
+        (true, true) => FormulationVerdict::Confirmed,
+        (true, false) => FormulationVerdict::Contradicted,
+        // A search that never closed cannot contradict anything. It fell short,
+        // which is a fact about the search and about how hard this encoding is.
+        (false, _) if matches => FormulationVerdict::Confirmed,
+        (false, _) => FormulationVerdict::Inconclusive,
+    };
+    let coverage_shortfall = (certified.score.covered_weight - decoded.covered_weight).max(0.0);
+    let mut limitations = vec![
+        "The model was minimised by a classical solver on this machine. No quantum hardware was involved and this is not evidence of quantum advantage.".to_owned(),
+        "Agreement shows the exported formulation encodes the same problem the native solvers answer. It says nothing about how any device would perform on it.".to_owned(),
+    ];
+    if !minimum_proven {
+        limitations.push(format!(
+            "The model has {variables} variables, above the exhaustive bound, so its reported minimum is the best found rather than a proven one."
+        ));
+    }
+    if verdict == FormulationVerdict::Inconclusive {
+        limitations.push(format!(
+            "The reference solver reached {:.6} of the certified {:.6} coverage weight. Constrained-coverage QUBOs put their penalty terms far above their reward terms, so a generic solver falling short on one is expected and is itself a property of the encoding worth knowing.",
+            decoded.covered_weight, certified.score.covered_weight
+        ));
+    }
+    if verdict == FormulationVerdict::Contradicted {
+        limitations.push(
+            "The minimum was proven and it is not the certified panel. The exported model does not encode the problem the profile states.".to_owned(),
+        );
+    }
+    if !certified.optimality_proven {
+        limitations.push(
+            "The native comparison did not close its own search, so this compares two unproven answers.".to_owned(),
+        );
+    }
+    Ok(FormulationCheck {
+        backend_id: executor.capability().backend_id.clone(),
+        minimum_proven,
+        decoded_inputs: decoded.selected_inputs.clone(),
+        decoded_covered_weight: decoded.covered_weight,
+        certified_inputs: certified.score.selected_inputs.clone(),
+        certified_covered_weight: certified.score.covered_weight,
+        verdict,
+        coverage_shortfall,
+        minimum_energy: *minimum_energy,
+        samples_returned: samples.len(),
+        limitations,
+    })
+}
+
+/// Wrap a fallible string-error computation as a reported measurement.
+fn measured_string<T>(result: Result<T, String>) -> Measured<T> {
+    result.map_or_else(Measured::unavailable, Measured::complete)
 }
 
 fn measured<T>(result: Result<T, qbm_benchmark::BenchmarkError>) -> Measured<T> {

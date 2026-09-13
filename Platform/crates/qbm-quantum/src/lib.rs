@@ -14,6 +14,7 @@ mod contracts;
 mod equivalence;
 mod error;
 mod executor;
+mod local;
 
 pub use contracts::{
     ApprovalProvenance, ApprovedProblemPayload, BackendCapability, BackendKind,
@@ -28,6 +29,7 @@ pub use equivalence::{
 };
 pub use error::QuantumContractError;
 pub use executor::{ExecutorError, ExecutorErrorKind, QuantumExecutor};
+pub use local::{LOCAL_ISING_BACKEND_ID, LocalIsingExecutor, LocalSolverConfig, coupled_variables};
 
 /// Version of serialized backend capability reports.
 pub const BACKEND_CAPABILITY_SCHEMA_VERSION: &str = "qbm.quantum-backend-capability/v1";

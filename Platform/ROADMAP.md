@@ -122,7 +122,13 @@ provider execution is not implemented in the default workflow
 - variable/coupling/range metrics and structural difficulty estimate
 - versioned provider capability, payload, request, job, result, and native
   rescoring contracts
-- export-only default readiness with no endpoints or credentials
+- a working executor behind those contracts: a local classical Ising/QUBO
+  minimiser, exhaustive below a configured width and seeded annealing above it,
+  declared as `BackendKind::Simulator` and never as hardware
+- a formulation check that minimises the exported model, decodes the result to
+  an input panel and compares it with the certified native answer, reporting
+  confirmed, contradicted, or inconclusive rather than a misleading boolean
+- no endpoints, no credentials, and nothing leaving the machine
 
 ## Milestone 10 — Fourteen-stage biomedical browser workflow
 
@@ -146,10 +152,13 @@ Architecture: [docs/BIOMEDICAL_WORKFLOW.md](docs/BIOMEDICAL_WORKFLOW.md)
 
 The following work is intentionally not described as complete:
 
-- **a provider executor.** `QuantumExecutor` is a provider-neutral trait with
-  no implementation outside its own tests. The default workflow is export-only
-  and the report and UI both say so plainly; what is missing is an executor to
-  export *to*, not an honest description of the gap;
+- **a quantum provider executor.** `QuantumExecutor` now has a real
+  implementation — `LocalIsingExecutor`, a deterministic classical minimiser —
+  so the seam is exercised rather than hypothetical, and every exported model is
+  solved and checked against the certified native answer. What is still missing
+  is an executor that submits to actual quantum hardware, which needs
+  credentials, a provider client and separate review. Nothing in the default
+  workflow claims otherwise;
 - repeatable end-to-end fixtures for folders, archives, and public GitHub
   across supported operating systems;
 - production biomedical adapter/exporter packages for individual project
