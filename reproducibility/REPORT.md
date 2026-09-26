@@ -18,7 +18,7 @@ The 66×88 instance is the **real profile**, not a stand-in: it is built from
 `benchmarks/heme/QBMED-HEME-001/`, an export of the outcome-by-input trigger and
 wiring matrix of the pathology rule engine (audit snapshot 2026-08-29, PRO-EXEC
 bundle 1.2.0), with every relationship carrying its source row. It records which
-laboratory inputs each rule reads; it contains **no patient data**.
+biomarkers each rule reads; it contains **no patient data**.
 
 That the structure is real is what makes the results below informative — the
 conjunctive rules that break greedy are a property of the rule engine, not of a

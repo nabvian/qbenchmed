@@ -87,7 +87,7 @@ boundaries, and what it deliberately does not do.
 
 `QBMED-HEME-001` is built from an audit export of a pathology rule engine's
 outcome-by-input trigger and wiring matrix (audit snapshot 2026-08-29, PRO-EXEC
-bundle 1.2.0). It records which laboratory inputs each rule reads. It contains
+bundle 1.2.0). It records which biomarkers each rule reads. It contains
 no patient data, and nothing here is a statement about hematology: a covering
 panel is a solution to a coverage objective over a rule graph, and it does not
 follow that any test is clinically unnecessary or that a smaller panel is safe.

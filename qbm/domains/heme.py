@@ -51,7 +51,7 @@ they are applied uniformly:
     choose whether the patient has a fever, so these fields are treated as
     always available at zero cost and create no decision variables.  Any arm
     whose only non-CBC driver is ambient is therefore satisfiable from its
-    laboratory inputs alone.
+    biomarkers alone.
 
 4.  **A disjunction becomes separate arms; a conjunction becomes one arm.**
     "RDW-CV >14.5 or RDW-SD >46" yields two arms.  "MCV <80 + Mentzer >14 +

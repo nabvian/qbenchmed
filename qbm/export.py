@@ -74,7 +74,7 @@ def build_benchmark_profile(
     profile_id: str | None = None,
     title: str | None = None,
     population: str = "Not declared by the source profile",
-    input_semantics: str = "A selectable measurement the rule engine can read",
+    input_semantics: str = "A selectable biomarker the rule engine can read",
     outcome_semantics: str = "A declared decision-support target the rules can fire",
     constraints: dict | None = None,
 ) -> dict:

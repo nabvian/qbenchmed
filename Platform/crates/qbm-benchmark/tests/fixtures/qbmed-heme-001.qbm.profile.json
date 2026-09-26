@@ -5,7 +5,7 @@
   "biomedical_scope": {
     "area": "hematology",
     "population": "Not declared by the source profile",
-    "input_semantics": "A selectable measurement the rule engine can read",
+    "input_semantics": "A selectable biomarker the rule engine can read",
     "outcome_semantics": "A declared decision-support target the rules can fire"
   },
   "inputs": [

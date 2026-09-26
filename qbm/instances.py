@@ -9,7 +9,7 @@ weights and input costs.
 The generator is domain-agnostic by design (spec section 24): nothing here knows
 that hematology exists.  A domain adapter supplies A, w, c and metadata; the
 `heme_shaped` regime below is a *synthetic stand-in* whose degree structure
-imitates a laboratory panel, used until the real 66x88 export is available.
+imitates a biomarker panel, used until the real 66x88 export is available.
 
 Structure regimes (spec section 19) exist because combinatorial difficulty
 depends on structure, not only on variable count.
@@ -533,7 +533,7 @@ def generate(
 
 
 def _heme_shaped(n_inputs: int, n_outcomes: int, rng: np.random.Generator) -> np.ndarray:
-    """Incidence structure imitating a laboratory-panel knowledge base.
+    """Incidence structure imitating a biomarker-panel knowledge base.
 
     Three properties are imposed, chosen to match how such knowledge bases
     actually look rather than to make any algorithm win:
@@ -610,7 +610,7 @@ def synthetic_heme_shaped(seed: int = 42, weight_scheme: str = "uniform",
     """
     inst = generate("heme_shaped", 66, 88, seed=seed,
                     weight_scheme=weight_scheme, instance_id=instance_id)
-    inst.notes = ("SYNTHETIC panel-shaped instance; imitates laboratory degree "
+    inst.notes = ("SYNTHETIC panel-shaped instance; imitates biomarker degree "
                   "structure only. Not the Q-BenchMed-Heme benchmark.")
     return inst
 
