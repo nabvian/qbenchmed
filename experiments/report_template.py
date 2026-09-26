@@ -41,6 +41,63 @@ def render(S: dict) -> str:
     classical_rows = "\n".join(
         f"| {k.split(' (')[0]} | {k.split('(')[1].rstrip(')')} | {_pct(v)} |"
         for k, v in sorted(h["classical_reaches_optimum"].items(), key=lambda kv: -kv[1]))
+    # These two sentences used to be fixed prose. They are claims about the
+    # table directly above them, so they are now read off it: a regenerated
+    # report that silently keeps a conclusion its own numbers have overturned
+    # is worse than no report.
+    _depths = {k: float(v) for k, v in h["qaoa_reaches_optimum_by_depth"].items()}
+    _best_depth = max(_depths, key=_depths.get)
+    _best_qaoa = _depths[_best_depth]
+    _classical = {k.split(" (")[0]: float(v)
+                  for k, v in h["classical_reaches_optimum"].items()}
+    _rivals = {k: v for k, v in _classical.items() if k != "exhaustive"}
+    _beaten = sorted(k for k, v in _rivals.items() if _best_qaoa > v)
+    if not _beaten:
+        qaoa_verdict = (
+            "**Every classical baseline on this QUBO reaches the optimum at least as "
+            "often as QAOA, at every depth.** Greedy is reported separately because it "
+            "solves the native formulation rather than the QUBO.")
+    else:
+        qaoa_verdict = (
+            f"**QAOA at p={_best_depth} reaches the optimum {_pct(_best_qaoa)} of the "
+            f"time, above {' and '.join(_beaten)}.** Tabu still solves every instance. "
+            f"With this many instances per configuration those rates are not separated "
+            f"by the data, so the honest reading is that QAOA at its best depth is "
+            f"comparable to the classical heuristics here \u2014 not that it beats them.")
+
+    # Section 8 restates section 4's verdict, so it is derived from the same
+    # numbers rather than written once and left to drift.
+    if not _beaten:
+        interpretation_opening = (
+            "On this problem, as formulated, **QAOA is outperformed by classical "
+            "heuristics on the identical QUBO**, and its advantage over random "
+            "sampling is modest.")
+        result_c_claim = (
+            "The specification's Result C \u2014 QAOA competitive only for specific "
+            "structures \u2014 is **not supported here for any structure tested**, in the "
+            "size range that can be simulated.")
+    else:
+        interpretation_opening = (
+            f"On this problem, as formulated, **QAOA at p={_best_depth} is comparable to "
+            f"the classical heuristics on the identical QUBO** \u2014 above "
+            f"{' and '.join(_beaten)}, below tabu, and not separated from either by this "
+            f"many instances. Its advantage over random sampling remains modest.")
+        result_c_claim = (
+            "The specification's Result C \u2014 QAOA competitive only for specific "
+            "structures \u2014 is **weakly consistent with the degree-capped structure "
+            "tested here at p=2**, and not established: the margin over the classical "
+            "heuristics is inside the noise, and tabu still solves every instance. It "
+            "holds only across the simulable range.")
+
+    _sizes = [float(_by_size(h["qaoa_reaches_optimum_by_size"], k)) for k in SIZES]
+    _monotone = all(a >= b for a, b in zip(_sizes, _sizes[1:]))
+    qaoa_size_claim = (
+        "QAOA's success **falls with problem size** across the simulable range:"
+        if _monotone else
+        "QAOA's success is **worst at the largest size tested**, but it does not decline "
+        "steadily on the way there, and with five instances per size each point is "
+        "individually noisy:")
+
     qaoa_rows = "\n".join(
         f"| QAOA p={k} | qubo | {_pct(v)} |"
         for k, v in sorted(h["qaoa_reaches_optimum_by_depth"].items()))
@@ -175,11 +232,9 @@ exhaustive enumeration of that same QUBO. 50 instances per configuration.
 {classical_rows}
 {qaoa_rows}
 
-**Tabu and simulated annealing on the same QUBO beat QAOA at every depth.**
-Greedy, on the native formulation, is comparable to QAOA p=1 \u2014 reported
-separately because it does not solve the QUBO.
+{qaoa_verdict}
 
-QAOA's success **falls with problem size** across the simulable range:
+{qaoa_size_claim}
 
 | inputs | 8 | 10 | 12 | 14 | 16 |
 |---|---|---|---|---|---|
@@ -277,12 +332,31 @@ absence let the phase bug survive. **The invalid CSV is retained** as
 of the record. The head-to-head and penalty-landscape results use only the ideal
 path and were verified unaffected.
 
+### A third defect, in the parameter search
+
+The variational parameters were drawn from `gamma` in `[0, pi)`, described in
+the code as one period. It is half of one: the cost layer `exp(-i gamma E)`
+repeats over `[0, 2 pi)` for this spectrum. On a probe instance the best `gamma`
+sat at 6.07, outside the interval the optimizer ever started in.
+
+Worse, the penalised spectrum spans thousands of energy units, so the
+expectation is a high-degree trigonometric polynomial in `gamma` with hundreds
+of local minima inside a single period. Three random restarts of a local
+optimizer is a lottery, not a search. On one instance it returned an expectation
+of 147.5 where a dense sweep of the same depth-1 landscape reaches 11.95, against
+a ground state of -9.
+
+The search now sweeps a coarse grid over one full, computed period and refines
+from its best points. **Both the head-to-head and the noise sweep were re-run**,
+and the head-to-head conclusion changed: QAOA p=2 went from 72% to 92%, and from
+0% to 80% at sixteen inputs. The earlier numbers measured the classical outer
+loop failing, not the ansatz. The spectrum measurements in section 5 are
+properties of the QUBO and were unaffected.
+
 ## 8. Interpretation
 
-On this problem, as formulated, **QAOA is outperformed by classical heuristics
-on the identical QUBO**, and its advantage over random sampling is modest and
-degrades with size. Three conditions would each have to change before that
-conclusion could be revisited.
+{interpretation_opening} Three conditions would each have to change before
+QAOA could be called a better choice than the classical baselines here.
 
 1. **The instance would have to be hard.** Certified optima in milliseconds
    leave nothing to win. Coverage is submodular; that is the obstacle.
@@ -294,10 +368,12 @@ conclusion could be revisited.
 3. **Noise would have to be far below current rates.** Two-qubit error at 1%
    already shifts the mean energy substantially against its ideal value.
 
-The specification's Result C \u2014 QAOA competitive only for specific structures \u2014
-is **not supported here for any structure tested**, in the size range that can
-be simulated. That range is small, and the honest statement of scope is that
-nothing here extrapolates to 66 inputs.
+{result_c_claim} That range is small, and the honest statement of scope is
+that nothing here extrapolates to 66 inputs.
+
+**A note on how this section changed.** An earlier revision of this report
+stated that classical heuristics beat QAOA at every depth. That conclusion was
+an artefact of the parameter search, not of the ansatz — see section 7.
 
 ## 9. Limitations
 

@@ -170,32 +170,90 @@ class Qaoa:
         return sv.expectation_diagonal(self.diag)
 
     # -- parameter optimization ---------------------------------------------
+    def gamma_period(self) -> float:
+        """Period of the cost layer in ``gamma``.
+
+        ``exp(-i gamma E)`` repeats once ``gamma`` advances by ``2 pi / g``,
+        where ``g`` is the greatest common divisor of the energy spacings.  For
+        an integer-valued spectrum that is ``2 pi``; for a rational one it can
+        be wider.  Searching a different interval than this either misses part
+        of the landscape or covers the same landscape repeatedly, and the first
+        of those quietly costs accuracy.
+        """
+        spacings = np.diff(np.unique(np.round(self.diag, 9)))
+        spacings = spacings[spacings > 1e-9]
+        if spacings.size == 0:
+            return 2.0 * np.pi
+        scaled = np.round(spacings / spacings.min()).astype(np.int64)
+        if not np.allclose(spacings / spacings.min(), scaled, atol=1e-6):
+            # Not a commensurate lattice: fall back to the spacing itself,
+            # which is the conservative (widest safe) choice.
+            return float(2.0 * np.pi / spacings.min())
+        return float(2.0 * np.pi / (spacings.min() * np.gcd.reduce(scaled)))
+
+    def _grid_seeds(self, p: int, gamma_hi: float, resolution: int) -> list[np.ndarray]:
+        """Best points of a coarse sweep, used as starting points.
+
+        The penalised QUBO has a very wide spectrum, so the expectation is a
+        trigonometric polynomial of high degree in ``gamma`` and carries
+        hundreds of local minima inside a single period.  A local optimizer
+        started at random lands in whichever one it fell into.  A coarse sweep
+        first is cheap at these depths and turns the outer loop from a lottery
+        into a search.
+        """
+        gammas = np.linspace(0.0, gamma_hi, resolution, endpoint=False)
+        betas = np.linspace(0.0, np.pi / 2, max(8, resolution // 8), endpoint=False)
+        scored = []
+        for gamma in gammas:
+            for beta in betas:
+                params = np.concatenate([np.full(p, gamma), np.full(p, beta)])
+                scored.append((self.expectation(params), gamma, beta))
+        scored.sort(key=lambda item: item[0])
+        return [np.concatenate([np.full(p, g), np.full(p, b)]) for _, g, b in scored]
+
     def optimize(self, p: int, *, optimizer: str = "COBYLA", seed: int | None = None,
-                 maxiter: int = 600, n_restarts: int = 1) -> OptimizerRecord:
+                 maxiter: int = 600, n_restarts: int = 1,
+                 init: str = "grid", grid_resolution: int = 64) -> OptimizerRecord:
         """Optimize (gamma, beta) at depth ``p``.
 
-        Multiple random restarts are supported because the QAOA landscape is
-        non-convex and a single start conflates "QAOA is weak here" with "the
-        classical outer loop got stuck" -- two very different findings.  The
-        restart count is recorded so the classical effort spent is visible.
+        ``init="grid"`` sweeps a coarse grid over one full ``gamma`` period and
+        refines from its best points; ``init="random"`` reproduces the original
+        behaviour of starting from uniform draws.  The distinction matters more
+        than it looks: on a penalty-encoded QUBO the random start finds
+        parameters far worse than the same ansatz can reach, which reads as
+        "QAOA is weak" when it is really "the classical outer loop got stuck".
+
+        The restart count is recorded either way, so the classical effort spent
+        is visible next to the result it bought.
         """
         if optimizer not in OPTIMIZERS:
             raise ValueError(f"unknown optimizer {optimizer!r}; use one of {OPTIMIZERS}")
+        if init not in ("grid", "random"):
+            raise ValueError(f"unknown init {init!r}; use 'grid' or 'random'")
         rng = np.random.default_rng(seed)
         t0 = time.perf_counter()
+        gamma_hi = self.gamma_period()
+
+        starts: list[np.ndarray] = []
+        grid_evaluations = 0
+        if init == "grid":
+            ranked = self._grid_seeds(p, gamma_hi, grid_resolution)
+            grid_evaluations = len(ranked)
+            starts = ranked[:max(1, n_restarts)]
+        while len(starts) < max(1, n_restarts):
+            starts.append(np.concatenate([rng.uniform(0, gamma_hi, p),
+                                          rng.uniform(0, np.pi / 2, p)]))
 
         best = None
         total_nfev = total_nit = 0
-        for _ in range(max(1, n_restarts)):
-            # gamma in [0, pi), beta in [0, pi/2): one period of each layer
-            x0 = np.concatenate([rng.uniform(0, np.pi, p),
-                                 rng.uniform(0, np.pi / 2, p)])
+        for x0 in starts:
             res = minimize(self.expectation, x0, method=optimizer,
                            options={"maxiter": maxiter})
             total_nfev += int(getattr(res, "nfev", 0) or 0)
             total_nit += int(getattr(res, "nit", 0) or 0)
             if best is None or res.fun < best.fun:
                 best, best_x0 = res, x0
+        total_nfev += grid_evaluations
 
         runtime_ms = (time.perf_counter() - t0) * 1e3
         return OptimizerRecord(
@@ -212,6 +270,7 @@ class Qaoa:
     # -- full run ------------------------------------------------------------
     def run(self, p: int, *, shots: int = 10_000, optimizer: str = "COBYLA",
             seed: int | None = None, maxiter: int = 600, n_restarts: int = 1,
+            init: str = "grid", grid_resolution: int = 64,
             optimum_energy: float | None = None, epsilon: float = 1e-6,
             feasible_fn=None) -> QaoaOutcome:
         """Optimize parameters, then sample, reporting both quality levels.
@@ -222,7 +281,8 @@ class Qaoa:
         """
         t0 = time.perf_counter()
         rec = self.optimize(p, optimizer=optimizer, seed=seed, maxiter=maxiter,
-                            n_restarts=n_restarts)
+                            n_restarts=n_restarts, init=init,
+                            grid_resolution=grid_resolution)
         params = np.asarray(rec.final_parameters)
         sv = self.state(params[:p], params[p:])
 
@@ -283,4 +343,6 @@ class Qaoa:
             extra={"ising_const": self.ising_const,
                    "reference_energy": ref,
                    "n_restarts": n_restarts,
+                   "parameter_init": init,
+                   "gamma_period": self.gamma_period(),
                    "algorithm_version": ALGORITHM_VERSION})
