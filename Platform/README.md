@@ -351,4 +351,10 @@ they passed for any particular checkout or release.
 
 ## Licence
 
-Apache License 2.0. See [LICENSE](LICENSE).
+GNU Affero General Public License, version 3 or later. See [LICENSE](LICENSE)
+and [NOTICE](../NOTICE).
+
+Section 13 matters here because this program serves a browser interface over
+HTTP: if you run a modified version and let other people use it over a network,
+you have to offer them the source of your modified version. Running it locally,
+which is the normal case, triggers nothing.

@@ -7,6 +7,8 @@ name = "qbenchmed"
 version = "0.1.0"
 description = "Reproducible benchmarking of quantum and classical optimization on structured biomedical problems"
 requires-python = ">=3.11"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 # numpy/scipy: core numerics and the HiGHS ILP used for certified ground truth.
 # pandas: result tables in experiments/ and the report generator.
 # pyyaml: qbm/profile.py reads/writes the profile.yaml header.

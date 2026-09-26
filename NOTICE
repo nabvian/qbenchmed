@@ -1,0 +1,29 @@
+Q-BenchMed
+Copyright (C) 2026 Koushik Das
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
+
+The full licence text is in LICENSE. It is the unmodified GNU AGPL version 3,
+published by the Free Software Foundation; the copyright on that document
+belongs to them, and the copyright on this program belongs to the author above.
+
+Section 13 of the AGPL applies to this program. Q-BenchMed serves a browser
+interface over HTTP. If you run a modified version and let other people use it
+over a network, you have to offer them the source of your modified version.
+Running it on your own machine, which is the normal case, triggers nothing.
+
+QBMED-HEME-001, the benchmark instance under benchmarks/heme/, is derived from
+an audit export of a pathology rule engine's outcome-by-input trigger matrix.
+It records which biomarkers each rule reads. It contains no patient data and no
+clinical knowledge, and no clinical claim follows from any result computed on
+it.

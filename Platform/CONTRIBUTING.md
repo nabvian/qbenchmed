@@ -54,4 +54,4 @@ trust-boundary impact, how it was tested, and any remaining limitations. Keep
 unrelated refactors in separate changes so review can follow the evidence.
 
 By contributing, you agree that your contribution is licensed under the
-repository's Apache License 2.0.
+repository's GNU Affero General Public License, version 3 or later.

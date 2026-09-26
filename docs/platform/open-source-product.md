@@ -356,7 +356,7 @@ examples/
 plugin-index/
 ```
 
-Recommended licence: Apache License 2.0 for the core application, SDK, schemas, and built-in adapters. It is permissive for commercial, academic, and personal use and provides an explicit patent grant. Every community plugin and fixture declares its own SPDX licence; no incompatible or unknown licence is silently bundled.
+Recommended licence: this blueprint originally proposed Apache License 2.0. The project ships under the GNU AGPL version 3 or later instead, so that a hosted derivative has to return its source. Every community plugin and fixture still declares its own SPDX licence; no incompatible or unknown licence is silently bundled.
 
 Recommended contribution model: Developer Certificate of Origin sign-off, public review, required tests, and no mandatory copyright assignment.
 
