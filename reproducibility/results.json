@@ -119,6 +119,171 @@
     "discarded_sweep": "noise_sweep_INVALID_phasebug.csv -- see REPORT.md"
   },
   "tests": {
-    "passing": 354
+    "passing": 396
+  },
+  "constrained": {
+    "instances": 25,
+    "p_opt_by_ansatz_depth": {
+      "constrained|1": 0.1788,
+      "constrained|2": 0.2701,
+      "constrained|3": 0.3397,
+      "penalty|1": 0.0016,
+      "penalty|2": 0.0258,
+      "penalty|3": 0.0038
+    },
+    "p_opt_by_ansatz_size": {
+      "constrained|8": 0.7917,
+      "constrained|10": 0.2216,
+      "constrained|12": 0.0819,
+      "constrained|14": 0.2364,
+      "constrained|16": 0.0191,
+      "penalty|8": 0.1149,
+      "penalty|10": 0.0086,
+      "penalty|12": 0.0006,
+      "penalty|14": 0.0035,
+      "penalty|16": 0.0016
+    },
+    "found_optimum_by_ansatz_depth": {
+      "constrained|1": 1.0,
+      "constrained|2": 1.0,
+      "constrained|3": 1.0,
+      "penalty|1": 0.6,
+      "penalty|2": 0.92,
+      "penalty|3": 0.72
+    },
+    "feasible_by_ansatz": {
+      "constrained": 1.0,
+      "penalty": 0.6891
+    },
+    "constrained_wins_fraction": 1.0,
+    "lift_over_random_by_ansatz_depth": {
+      "constrained|1": 4.99,
+      "constrained|2": 9.05,
+      "constrained|3": 13.31,
+      "penalty|1": 0.02,
+      "penalty|2": 0.26,
+      "penalty|3": 0.05
+    },
+    "constrained_lift_by_size": {
+      "8": 2.5,
+      "10": 5.9,
+      "12": 9.9,
+      "14": 6.8,
+      "16": 16.8
+    },
+    "constrained_lift_range": [
+      1.6,
+      68.3
+    ],
+    "constrained_beats_random_fraction": 1.0,
+    "penalty_below_random_fraction": 0.973,
+    "random_hit_by_size": {
+      "8": 1.0,
+      "10": 1.0,
+      "12": 1.0,
+      "14": 1.0,
+      "16": 0.933
+    },
+    "median_ratio": 131.6,
+    "qubits_by_ansatz_size": {
+      "constrained|8": 8,
+      "constrained|10": 10,
+      "constrained|12": 12,
+      "constrained|14": 14,
+      "constrained|16": 16,
+      "penalty|8": 10,
+      "penalty|10": 12,
+      "penalty|12": 15,
+      "penalty|14": 17,
+      "penalty|16": 19
+    },
+    "gates_by_ansatz_depth": {
+      "constrained|1": 54,
+      "constrained|2": 108,
+      "constrained|3": 162,
+      "penalty|1": 209,
+      "penalty|2": 418,
+      "penalty|3": 628
+    },
+    "gates_with_prep_by_ansatz_depth": {
+      "constrained|1": 360,
+      "constrained|2": 414,
+      "constrained|3": 468,
+      "penalty|1": 209,
+      "penalty|2": 418,
+      "penalty|3": 628
+    }
+  },
+  "real_slices": {
+    "sizes": [
+      10,
+      12,
+      14,
+      16
+    ],
+    "penalty_qubits": {
+      "10": 85,
+      "12": 100,
+      "14": 110,
+      "16": 120
+    },
+    "conjunctive_arms": {
+      "10": 34,
+      "12": 41,
+      "14": 45,
+      "16": 51
+    },
+    "n_arms": {
+      "10": 56,
+      "12": 63,
+      "14": 69,
+      "16": 75
+    },
+    "random_p_opt": {
+      "10": 0.0083,
+      "12": 0.002,
+      "14": 0.001,
+      "16": 0.0009
+    },
+    "p_opt": {
+      "10|1": 0.0473,
+      "10|2": 0.0864,
+      "10|3": 0.2462,
+      "12|1": 0.0204,
+      "12|2": 0.0248,
+      "12|3": 0.0153,
+      "14|1": 0.0107,
+      "14|2": 0.0126,
+      "14|3": 0.0046,
+      "16|1": 0.0182,
+      "16|2": 0.035,
+      "16|3": 0.0582
+    },
+    "lift_range": [
+      4.6,
+      63.5
+    ],
+    "greedy_finds_all": true,
+    "depth3_worse_than_depth2": [
+      12,
+      14
+    ],
+    "max_term_order": 5
+  },
+  "qiskit": {
+    "runs": 18,
+    "agree": 18,
+    "min_fidelity": 0.9999999999999778,
+    "max_abs_z": 1.86,
+    "shots": 20000,
+    "qiskit": "2.5.2",
+    "p_opt_by_ansatz_size": {
+      "constrained|8": 0.7897,
+      "constrained|10": 0.2448,
+      "constrained|12": 0.091,
+      "penalty|8": 0.1104,
+      "penalty|10": 0.0098,
+      "penalty|12": 0.0006
+    }
   }
 }

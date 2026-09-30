@@ -180,6 +180,9 @@ def summarise() -> tuple[dict, pd.DataFrame]:
             "discarded_sweep": "noise_sweep_INVALID_phasebug.csv -- see REPORT.md",
         },
         "tests": {"passing": test_count()},
+        "constrained": _constrained_summary(),
+        "real_slices": _real_slices_summary(),
+        "qiskit": _qiskit_summary(),
     }
 
     # one row per algorithm/configuration
@@ -209,6 +212,91 @@ def summarise() -> tuple[dict, pd.DataFrame]:
     summary = pd.DataFrame(rows).sort_values(
         ["family", "reaches_certified_optimum"], ascending=[True, False])
     return S, summary
+
+
+def _constrained_summary() -> dict | None:
+    """Penalty vs constrained mixer on the head-to-head instances, if run."""
+    path = RES / "constrained_mixer.csv"
+    if not path.exists():
+        return None
+    cm = pd.read_csv(path)
+    by = cm.groupby(["ansatz", "depth"])
+    wide = cm.pivot_table(index=["n_inputs", "instance_seed", "depth"],
+                          columns="ansatz", values="optimum_probability")
+    ratio = (wide["constrained"] / wide["penalty"].clip(lower=1e-12))
+    return {
+        "instances": int(cm.groupby(["n_inputs", "instance_seed"]).ngroups),
+        "p_opt_by_ansatz_depth": {f"{a}|{d}": round(float(v), 4)
+                                  for (a, d), v in by.optimum_probability.mean().items()},
+        "p_opt_by_ansatz_size": {f"{a}|{n}": round(float(v), 4) for (a, n), v in
+                                 cm[cm.depth == 2].groupby(["ansatz", "n_inputs"])
+                                 .optimum_probability.mean().items()},
+        "found_optimum_by_ansatz_depth": {f"{a}|{d}": round(float(v), 3)
+                                          for (a, d), v in by.found_optimum.mean().items()},
+        "feasible_by_ansatz": {a: round(float(v), 4) for a, v in
+                               cm.groupby("ansatz").feasible_probability.mean().items()},
+        "constrained_wins_fraction": round(float((ratio > 1).mean()), 3),
+        "lift_over_random_by_ansatz_depth": {
+            f"{a}|{d}": round(float(v), 2) for (a, d), v in
+            by.lift_over_random.median().items()},
+        "constrained_lift_by_size": {int(n): round(float(v), 1) for n, v in
+                                     cm[cm.ansatz == "constrained"]
+                                     .groupby("n_inputs").lift_over_random.median().items()},
+        "constrained_lift_range": [round(float(cm[cm.ansatz == "constrained"].lift_over_random.min()), 1),
+                                   round(float(cm[cm.ansatz == "constrained"].lift_over_random.max()), 1)],
+        "constrained_beats_random_fraction": round(float(
+            (cm[cm.ansatz == "constrained"].lift_over_random > 1).mean()), 3),
+        "penalty_below_random_fraction": round(float(
+            (cm[cm.ansatz == "penalty"].lift_over_random < 1).mean()), 3),
+        "random_hit_by_size": {int(n): round(float(v), 3) for n, v in
+                               cm.groupby("n_inputs").random_feasible_hit.mean().items()},
+        "median_ratio": round(float(ratio.median()), 1),
+        "qubits_by_ansatz_size": {f"{a}|{n}": int(v) for (a, n), v in
+                                  cm.groupby(["ansatz", "n_inputs"]).qubits.first().items()},
+        "gates_by_ansatz_depth": {f"{a}|{d}": int(round(float(v))) for (a, d), v in
+                                  by.two_qubit_gates.mean().items()},
+        "gates_with_prep_by_ansatz_depth": {f"{a}|{d}": int(round(float(v))) for (a, d), v in
+                                            by.two_qubit_gates_with_prep.mean().items()},
+    }
+
+
+def _real_slices_summary() -> dict | None:
+    path = RES / "real_slices.csv"
+    if not path.exists():
+        return None
+    rl = pd.read_csv(path)
+    first = rl.groupby("n_inputs").first()
+    return {
+        "sizes": [int(n) for n in first.index],
+        "penalty_qubits": {int(n): int(v) for n, v in first.penalty_qubits.items()},
+        "conjunctive_arms": {int(n): int(v) for n, v in first.conjunctive_arms.items()},
+        "n_arms": {int(n): int(v) for n, v in first.n_arms.items()},
+        "random_p_opt": {int(n): round(float(v), 4) for n, v in first.random_feasible_p_opt.items()},
+        "p_opt": {f"{int(n)}|{int(d)}": round(float(v), 4)
+                  for n, d, v in rl[["n_inputs", "depth", "optimum_probability"]].itertuples(index=False)},
+        "lift_range": [round(float(rl.lift_over_random.min()), 1),
+                       round(float(rl.lift_over_random.max()), 1)],
+        "greedy_finds_all": bool(rl.greedy_finds_optimum.all()),
+        "depth3_worse_than_depth2": [int(n) for n, g in rl.groupby("n_inputs")
+                                     if float(g[g.depth == 3].optimum_probability.iloc[0])
+                                     < float(g[g.depth == 2].optimum_probability.iloc[0])],
+        "max_term_order": int(max(max(int(k) for k in json.loads(t))
+                                  for t in rl.terms_by_order)),
+    }
+
+
+def _qiskit_summary() -> dict | None:
+    path = RES / "qiskit_reproduction.csv"
+    if not path.exists():
+        return None
+    qr = pd.read_csv(path)
+    env = json.loads((RES / "qiskit_reproduction_env.json").read_text())
+    return {"runs": int(len(qr)), "agree": int(qr.agrees.sum()),
+            "min_fidelity": float(qr.state_fidelity.min()),
+            "max_abs_z": round(float(qr.z_score.abs().max()), 2),
+            "shots": int(qr.shots.iloc[0]), "qiskit": env["qiskit"],
+            "p_opt_by_ansatz_size": {f"{a}|{n}": round(float(v), 4) for (a, n), v in
+                                     qr.groupby(["ansatz", "n_inputs"]).exact_p_opt.mean().items()}}
 
 
 def test_count() -> int:

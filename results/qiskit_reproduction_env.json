@@ -1,0 +1,33 @@
+{
+  "environment": {
+    "python": "3.14.7",
+    "implementation": "CPython",
+    "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu_count": 18,
+    "packages": {
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "pandas": "3.0.6",
+      "matplotlib": null
+    },
+    "git_commit": "458968b9554dc8d729ab9dc542bafc8aac3c8391"
+  },
+  "qiskit": "2.5.2",
+  "sampler": "qiskit.primitives.StatevectorSampler",
+  "sizes": [
+    8,
+    10,
+    12
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "depth": 2,
+  "shots": 20000,
+  "k_frac": 0.3,
+  "agreement_rule": "|qiskit estimate - exact| <= 4 binomial standard errors",
+  "total_runtime_s": 12.7
+}

@@ -1,0 +1,45 @@
+{
+  "environment": {
+    "python": "3.14.7",
+    "implementation": "CPython",
+    "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu_count": 18,
+    "packages": {
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "pandas": "3.0.6",
+      "matplotlib": null
+    },
+    "git_commit": "458968b9554dc8d729ab9dc542bafc8aac3c8391"
+  },
+  "regime": "degree_capped",
+  "sizes": [
+    8,
+    10,
+    12,
+    14,
+    16
+  ],
+  "depths": [
+    1,
+    2,
+    3
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "shots": 4096,
+  "n_restarts": 3,
+  "k_frac": 0.3,
+  "instances_shared_with": "experiments/run_headtohead.py",
+  "cnot_per_rzz": 2,
+  "cnot_per_xy": 2,
+  "dicke_prep_basis": "CNOTs in the emitted Baertschi-Eidenbenz circuit, untranspiled",
+  "algorithm_version": "constrained-qaoa-0.1.0",
+  "total_runtime_s": 677.2
+}

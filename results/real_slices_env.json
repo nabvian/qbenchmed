@@ -1,0 +1,36 @@
+{
+  "environment": {
+    "python": "3.14.7",
+    "implementation": "CPython",
+    "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu_count": 18,
+    "packages": {
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "pandas": "3.0.6",
+      "matplotlib": null
+    },
+    "git_commit": "458968b9554dc8d729ab9dc542bafc8aac3c8391"
+  },
+  "benchmark_id": "QBMED-HEME-001",
+  "instance_checksum": "f957662842c7782a",
+  "sizes": [
+    10,
+    12,
+    14,
+    16
+  ],
+  "depths": [
+    1,
+    2,
+    3
+  ],
+  "k_frac": 0.3,
+  "shots": 4096,
+  "n_restarts": 3,
+  "seed": 0,
+  "slicing": "Instance.subinstance: highest-degree inputs, arms losing a member dropped",
+  "algorithm_version": "constrained-qaoa-0.1.0",
+  "total_runtime_s": 59.2
+}

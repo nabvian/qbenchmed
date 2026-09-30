@@ -339,7 +339,11 @@ class Instance:
         so the sub-instance keeps hub structure rather than becoming a random
         sparse remnant.  Outcomes are restricted to those still reachable.
         """
-        rng = np.random.default_rng(self.seed if seed is None else seed)
+        # A real (non-generated) instance carries seed -1 as a "not generated"
+        # sentinel, which NumPy rejects.  The seed only breaks ties among
+        # equal-degree inputs, so a fixed value keeps real slices deterministic.
+        base = self.seed if self.seed >= 0 else 0
+        rng = np.random.default_rng(base if seed is None else seed)
         order = np.lexsort((rng.random(self.n_inputs), -self.input_degree))
         keep_i = np.sort(order[:n_inputs])
         A = self.A[keep_i]

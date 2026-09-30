@@ -16,7 +16,7 @@ pinned toolchain is 1.95.
 Nothing needs network access at run time. Nothing needs a quantum provider
 account, and there is nowhere to put one.
 
-## 2. The quantum result, in about a minute
+## 2. The quantum result
 
 ```bash
 python3 -m venv .venv
@@ -47,7 +47,37 @@ cat reproducibility/REPORT.md
 `notebooks/qbenchmed_colab.ipynb` runs the same comparison in Google Colab with
 no local install. Open it from GitHub with the Colab badge in the README.
 
-## 4. Analyse a profile from the command line
+## 4. Take a problem or a circuit somewhere else
+
+`qbm/interop.py` exports without requiring anything from this package on the
+other side.
+
+```python
+from qbm import instances, qubo, interop
+
+inst = instances.generate("degree_capped", 12, 16, seed=0)
+q = qubo.build_max_coverage(inst.A, inst.w, inst.c, 4, encoding="pairwise")
+
+open("problem.lp", "w").write(interop.qubo_to_lp(q))
+open("penalty.qasm", "w").write(
+    interop.to_qasm2(q.n_vars, interop.penalty_qaoa_gates(q, [0.4], [0.9])))
+open("constrained.qasm", "w").write(
+    interop.to_qasm2(12, interop.constrained_qaoa_gates(inst.A, inst.w, 4, [0.4], [0.9])))
+```
+
+The `.lp` file is CPLEX LP, which qiskit-optimization's `QuadraticProgram`,
+CPLEX, Gurobi, SCIP and HiGHS all read. The `.qasm` files are OpenQASM 2.0 built
+only from `h`, `x`, `rx`, `ry`, `rz` and `cx`, with a measurement on every qubit,
+so they load into any OpenQASM 2.0 toolchain as they are.
+
+Replace the angles with ones you have optimised. `ConstrainedQaoa.run` returns
+its optimised angles in `parameters`.
+
+The constrained circuit exports only when every outcome is reached by at most
+two biomarkers. A rule needing three or more together becomes a multi-body phase
+that the exporter does not emit, and it refuses rather than approximating.
+
+## 5. Analyse a profile from the command line
 
 ```bash
 cd Platform
@@ -80,7 +110,7 @@ Other subcommands: `solve` runs one solver with your own ceiling or coverage
 floor, `qubo` builds and validates the QUBO and Ising forms, and `compare`
 diffs two revisions of the same profile.
 
-## 5. Run it on a project of your own
+## 6. Run it on a project of your own
 
 ```bash
 ./target/release/qbm --data-dir .qbenchmed \
@@ -107,7 +137,7 @@ If it reports that no profile could be built, read
 the project never declares, in a machine-readable field, what domain it belongs
 to — and that is two lines to fix.
 
-## 6. The browser interface
+## 7. The browser interface
 
 ```bash
 ./target/release/qbm --data-dir .qbenchmed serve
@@ -124,7 +154,7 @@ says so, so a reviewed result and an unattended one can always be told apart.
 The service listens on loopback only. Uploaded project code is read as data and
 never executed.
 
-## 7. Reading the output
+## 8. Reading the output
 
 Three fields decide how much weight an answer carries.
 
@@ -146,16 +176,16 @@ when relationships mention it.
 
 None of those are claims about your project beyond the profile it produced.
 
-## 8. Reproducing the published numbers
+## 9. Reproducing the published numbers
 
 See [docs/TESTING.md](docs/TESTING.md). It covers both test suites, which files
 are protecting what, the measured runtime of every experiment, and what is not
 covered.
 
-## 9. If something goes wrong
+## 10. If something goes wrong
 
 **"no conservative biomedical profile projection is available"** — the project
-declares no domain. See section 5 above.
+declares no domain. See section 6 above.
 
 **"graph exceeds configured node limit"** — the project is too large to map.
 Scope the intake with `--exclude-name`.

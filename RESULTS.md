@@ -86,8 +86,72 @@ while often making it *less* likely to sample the optimum — 0.00573 to 0.00073
 in one case. Under a penalty encoding the variational objective and the thing
 you actually need come apart.
 
-Constraint-preserving mixers on a fixed Hamming-weight subspace would remove the
-penalty term entirely, and are the next experiment.
+## The prediction, tested: a constrained mixer
+
+If the penalty is the problem, removing it should help. The constrained ansatz
+never leaves the set of valid panels: it starts from the Dicke state, the equal
+superposition of every panel with exactly K biomarkers, mixes with an XY ring
+that conserves the number of selected biomarkers, and uses coverage alone as its
+cost, with no penalty and no slack qubits.
+
+Run on the same 25 instances as the head-to-head, same shots, same restarts,
+same parameter search. The fair baseline is a random valid panel:
+
+| depth | penalty QAOA, vs random | constrained QAOA, vs random |
+|---|---|---|
+| 1 | 0.02× | 5.0× |
+| 2 | 0.26× | 9.1× |
+| 3 | 0.05× | 13.3× |
+
+Medians. **The constrained ansatz beats a random valid panel on every instance
+at every depth**, and its margin is largest at the largest size: 2.5× at
+eight inputs, 17× at sixteen, though not rising steadily in between (it dips
+at fourteen). **The penalty ansatz does worse than random guessing**, because
+it spends probability on panels that break the budget.
+
+It also runs on fewer qubits (16 against 19 at the largest size), and every
+sample it produces is valid.
+
+Two things it does not show. The rate at which any of 4,096 shots hits the
+optimum is 100% for the constrained ansatz, but random guessing among valid
+panels does that too when there are at most 4,368 of them, so that number is
+left out of the claim. And the Dicke state has to be prepared: counting the
+real preparation circuit, the constrained version costs more two-qubit gates at
+depth 1, breaks even at depth 2 (414 against 418), and is cheaper at depth 3.
+On a device, where two-qubit error dominates, that trade is the open question.
+
+## On the real instance
+
+The head-to-head uses generated instances because the penalty encoding of the
+real one cannot be simulated. Its rules need several biomarkers together, and a
+penalty QUBO spends an auxiliary variable per outcome plus slack to say so:
+
+| biomarkers | 10 | 12 | 14 | 16 |
+|---|---|---|---|---|
+| qubits, penalty encoding | 85 | 100 | 110 | 120 |
+| qubits, constrained | 10 | 12 | 14 | 16 |
+| constrained vs random, best depth | 29.5× | 12.3× | 12.6× | 63.5× |
+
+These are nested slices of QBMED-HEME-001, keeping every rule whose biomarkers
+all survive. The constrained ansatz runs on them where the penalty encoding
+cannot, and beats a random valid panel by 4.6× to 63.5× across depths.
+
+At these sizes greedy still finds the optimum, so QAOA is not beating anything
+classical here. And depth is not reliably helpful: at 12 and 14 biomarkers,
+depth 3 did worse than depth 2, which points at the parameter search.
+
+## Reproduced on a second platform
+
+Every number above comes from this package's own simulator. To check that the
+simulator is not the source of the result, both ansatzes were optimised here,
+exported as OpenQASM 2.0, and run by Qiskit's sampler, a separate code base
+reading the circuit from text. 18 of 18 runs agree within shot noise, and the
+two simulators' states agree to twelve decimal places.
+
+That check earned its place. While building the constrained ansatz, its cost
+layer was written with exactly the phase bug that once invalidated the noise
+sweep. The exported circuit disagreed with the simulator, which is how it was
+found, before any result was recorded.
 
 ## Noise
 
@@ -150,6 +214,6 @@ graph. It does not follow that any biomarker is clinically unnecessary, that a
 smaller panel is safe, or that an outcome set is validated because it can be
 optimised.
 
-No hardware result. Everything is simulated. The executor interface is
-provider-neutral and its only implementation is a local classical Ising solver,
-which reports itself as classical.
+No hardware result. Everything is simulated, noiselessly for the constrained
+mixer. The circuits export as standard OpenQASM, but none has been run on a
+device.

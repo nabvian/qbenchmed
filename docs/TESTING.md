@@ -61,6 +61,21 @@ run without the `dev` extra reports 314 passed and 1 skipped.
 The library never imports Qiskit. It is a validation reference, not a
 dependency.
 
+Two newer files carry the constrained-mixer work:
+
+`tests/test_constrained.py` checks the ansatz against things outside it: the XY
+gate conserves Hamming weight, the Dicke state is uniform over its subspace,
+the exactly-K subspace keeps the at-most-K optimum, and the coverage diagonal
+agrees with both the certified solver and `coverage_mask`, rule arms included.
+It also pins the phase bug described in section 7 of the report, which this
+code reintroduced once.
+
+`tests/test_interop.py` checks that every exported circuit is the circuit. Each
+one is a single gate list, applied to this simulator and emitted as OpenQASM;
+with Qiskit installed, the emitted text is loaded into Qiskit and its
+statevector must match. That comparison is what caught the phase bug. It also
+has Qiskit's transpiler confirm the two-CNOT costs the resource counts assume.
+
 ## Reproducing the published results
 
 The result tables in `results/` and the report in `reproducibility/` are
@@ -76,9 +91,15 @@ Those three are enough to rebuild the report, because the two slower
 experiments ship their result CSVs:
 
 ```bash
-python experiments/run_headtohead.py   # 7.6 min, state-vector simulation
-python experiments/run_noise.py        # 1.1 min, 279 points x 400 trajectories
+python experiments/run_headtohead.py         # 7.6 min, state-vector simulation
+python experiments/run_noise.py              # 1.1 min, 279 points x 400 trajectories
+python experiments/run_constrained_mixer.py  # 11 min, penalty vs constrained, 25 instances
+python experiments/run_real_slices.py        # 1 min, constrained QAOA on the real instance
+python experiments/run_qiskit_reproduction.py  # 13 s, needs the dev extra (Qiskit)
 ```
+
+The constrained-mixer run is deterministic: two consecutive runs produced
+identical values in every row of its table.
 
 Each script records its own measured runtime and environment in
 `results/*_env.json`.

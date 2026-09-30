@@ -31,6 +31,212 @@ def _by_size(d: dict, key: str):
     return d[int(key)]
 
 
+def _k(d: dict, *parts) -> float:
+    return float(d["|".join(str(x) for x in parts)])
+
+
+def _constrained_sections(S: dict) -> str:
+    """Sections 8 and 9, read off the constrained, real-slice and Qiskit tables.
+
+    Absent tables produce a one-line note rather than a gap in the numbering, so
+    the report stays well-formed on a checkout that has not run them.
+    """
+    c, r, q = S.get("constrained"), S.get("real_slices"), S.get("qiskit")
+    out = ["## 8. Constrained mixer: the prediction, tested\n"]
+    if c is None:
+        out.append("Not run in this checkout: `python experiments/run_constrained_mixer.py`.\n")
+    else:
+        depths = sorted({int(k.split("|")[1]) for k in c["p_opt_by_ansatz_depth"]})
+        sizes = sorted({int(k.split("|")[1]) for k in c["p_opt_by_ansatz_size"]})
+        depth_rows = "\n".join(
+            f"| {d} | {_k(c['p_opt_by_ansatz_depth'], 'penalty', d):.4f} | "
+            f"{_k(c['p_opt_by_ansatz_depth'], 'constrained', d):.4f} | "
+            f"{_k(c['lift_over_random_by_ansatz_depth'], 'penalty', d):.2f}× | "
+            f"{_k(c['lift_over_random_by_ansatz_depth'], 'constrained', d):.1f}× |"
+            for d in depths)
+        _lifts = list(c["constrained_lift_by_size"].values())
+        lift_trend = ("the lift grows with size" if all(a <= b for a, b in zip(_lifts, _lifts[1:]))
+                      else "the lift is largest at the largest size, though it does not "
+                           "rise steadily")
+        lift_by_size = ", ".join(f"{v}× at {n}" for n, v in
+                                 c["constrained_lift_by_size"].items())
+        random_hit = ", ".join(f"{_pct(v)} at {n}" for n, v in c["random_hit_by_size"].items())
+        size_hdr = " | ".join(str(n) for n in sizes)
+        pen_row = " | ".join(f"{_k(c['p_opt_by_ansatz_size'], 'penalty', n):.4f}" for n in sizes)
+        con_row = " | ".join(f"{_k(c['p_opt_by_ansatz_size'], 'constrained', n):.4f}" for n in sizes)
+        qub_row = " | ".join(f"{int(_k(c['qubits_by_ansatz_size'], 'penalty', n))} / "
+                             f"{int(_k(c['qubits_by_ansatz_size'], 'constrained', n))}" for n in sizes)
+        gate_rows = "\n".join(
+            f"| {d} | {int(_k(c['gates_by_ansatz_depth'], 'penalty', d))} | "
+            f"{int(_k(c['gates_by_ansatz_depth'], 'constrained', d))} | "
+            f"{int(_k(c['gates_with_prep_by_ansatz_depth'], 'constrained', d))} |"
+            for d in depths)
+        cheaper = [d for d in depths
+                   if _k(c["gates_with_prep_by_ansatz_depth"], "constrained", d)
+                   < _k(c["gates_by_ansatz_depth"], "penalty", d)]
+        if len(cheaper) == len(depths):
+            gate_claim = ("Including the Dicke preparation, the constrained circuit is "
+                          "cheaper at every depth tested.")
+        elif not cheaper:
+            gate_claim = ("Including the Dicke preparation, the constrained circuit is "
+                          "**more** expensive at every depth tested; it is cheaper per "
+                          "layer, and the one-time preparation outweighs that here.")
+        else:
+            first = min(cheaper)
+            con_g = _k(c["gates_with_prep_by_ansatz_depth"], "constrained", first)
+            pen_g = _k(c["gates_by_ansatz_depth"], "penalty", first)
+            later = [d for d in cheaper if d > first]
+            if (pen_g - con_g) / pen_g < 0.05:
+                gate_claim = (
+                    f"Including the Dicke preparation, the constrained circuit costs "
+                    f"more at p=1, breaks even at p={first} ({int(con_g)} against "
+                    f"{int(pen_g)}, a margin too small to call a saving)"
+                    + (f", and is cheaper from p={min(later)}." if later else ".")
+                    + " The preparation is a one-time cost; the per-layer saving "
+                    "only pays it back with depth.")
+            else:
+                gate_claim = (f"Including the Dicke preparation, the constrained circuit "
+                              f"is cheaper from p={first}. Below that the one-time "
+                              f"preparation outweighs its per-layer saving.")
+        pen_feas = float(c["feasible_by_ansatz"]["penalty"])
+        con_feas = float(c["feasible_by_ansatz"]["constrained"])
+        out.append(f"""Section 5 made a prediction: remove the penalty and the probability of
+sampling the optimum should rise. This section tests it on the same
+{c['instances']} head-to-head instances, with the same shots, restart count and
+grid-seeded parameter search.
+
+The constrained ansatz never leaves the feasible set. It starts from the Dicke
+state `|D^n_K>`, the equal superposition of every panel with exactly K
+biomarkers; its mixer is an XY ring, every term of which conserves Hamming
+weight; and its cost layer is coverage alone, with **no penalty term and no
+slack qubits**. "At most K" becomes "exactly K" without loss because coverage
+never falls when a biomarker is added, and the experiment asserts that equality
+on every instance rather than assuming it.
+
+The fair baseline is a uniformly random panel of exactly K biomarkers — the
+Dicke state before any layer. Probability of sampling the certified optimum,
+and the median lift over that baseline:
+
+| depth | P(opt), penalty | P(opt), constrained | lift over random, penalty | lift over random, constrained |
+|---|---|---|---|---|
+{depth_rows}
+
+**The constrained ansatz beats a random feasible panel on
+{_pct(c['constrained_beats_random_fraction'])} of instance-depth pairs**, by
+{c['constrained_lift_range'][0]}× to {c['constrained_lift_range'][1]}×, and {lift_trend}
+({lift_by_size}). **The penalty ansatz does worse than random guessing on
+{_pct(c['penalty_below_random_fraction'])} of them**: it spreads probability over panels that
+break the budget.
+
+The rate at which *any* of the 4,096 shots hits the optimum is deliberately not
+the headline. The constrained ansatz hits it every time, but so would random
+guessing among valid panels ({random_hit}): with a feasible space of at most
+4,368 panels, 4,096 shots find the optimum by chance. That column is
+uninformative here, and quoting it would overstate the result.
+
+At p=2, by size, with qubit counts (penalty / constrained):
+
+| inputs | {size_hdr} |
+|---|{'---|' * len(sizes)}
+| P(opt), penalty | {pen_row} |
+| P(opt), constrained | {con_row} |
+| qubits | {qub_row} |
+
+Against the penalty ansatz directly, the constrained one samples the optimum
+more often on {_pct(c['constrained_wins_fraction'])} of instance-depth pairs, by a median
+factor of {c['median_ratio']}× — but much of that factor measures how poorly the
+penalty encoding does, not how well the constrained one does, which is why the
+random baseline leads. Every constrained sample is feasible
+({100 * con_feas:.1f}%, measured from the samples, not assumed); the penalty
+ansatz puts {100 * (1 - pen_feas):.1f}% of its samples outside the budget.
+
+Mean two-qubit gates on a CX-native device, cost layer and mixer both charged:
+
+| depth | penalty | constrained, circuit | constrained, with Dicke preparation |
+|---|---|---|---|
+{gate_rows}
+
+{gate_claim} Its count comes from the real Baertschi-Eidenbenz
+circuit this project exports, untranspiled, so it is an upper bound.
+
+This is noiseless simulation. Section 6 showed two-qubit error dominates, and
+the constrained ansatz front-loads a fixed two-qubit cost in its preparation.
+Whether the gain in optimum probability survives that on a real device is the
+open question this section hands on, not one it answers.
+""")
+
+    out.append("## 9. The real instance, and an independent reproduction\n")
+    if r is None:
+        out.append("Real-instance slices not run: `python experiments/run_real_slices.py`.\n")
+    else:
+        sizes = r["sizes"]
+        hdr = " | ".join(str(n) for n in sizes)
+        qrow = " | ".join(f"{r['penalty_qubits'][n]} / {n}" for n in sizes)
+        arow = " | ".join(f"{r['conjunctive_arms'][n]} of {r['n_arms'][n]}" for n in sizes)
+        rrow = " | ".join(f"{r['random_p_opt'][n]:.4f}" for n in sizes)
+        prows = "\n".join(
+            f"| P(opt), p={d} | " + " | ".join(f"{_k(r['p_opt'], n, d):.4f}" for n in sizes) + " |"
+            for d in (1, 2, 3))
+        worse = r["depth3_worse_than_depth2"]
+        depth_note = (
+            f"Depth does not help monotonically: at {' and '.join(str(n) for n in worse)} "
+            f"inputs, p=3 samples the optimum less often than p=2. The grid that seeds the "
+            f"search uses the same angles in every layer, and three restarts may not be "
+            f"enough at p=3; that is a hypothesis, not a finding."
+            if worse else "Depth helps at every size tested.")
+        greedy_note = (
+            "**Greedy finds the certified optimum on every slice.** At these sizes the "
+            "problem is classically easy, and QAOA is not competing with anything "
+            "classical here. The greedy stall of section 1 appears only at 34 or more "
+            "inputs, beyond simulation."
+            if r["greedy_finds_all"] else
+            "Greedy misses the certified optimum on at least one slice.")
+        out.append(f"""The head-to-head runs on generated instances because the penalty encoding of
+QBMED-HEME-001 cannot be simulated. Its rules are conjunctive, and a penalty
+QUBO expresses each one with an auxiliary variable per outcome plus slack. The
+constrained ansatz evaluates coverage as a phase over the biomarkers directly,
+so an AND-rule costs no qubits at all.
+
+Nested slices of the real instance, keeping the highest-degree biomarkers and
+dropping any rule arm that loses a member:
+
+| inputs | {hdr} |
+|---|{'---|' * len(sizes)}
+| qubits, penalty / constrained | {qrow} |
+| conjunctive arms | {arow} |
+| P(opt), random feasible panel | {rrow} |
+{prows}
+
+**The constrained ansatz runs on the real instance where the penalty encoding
+cannot, and beats a random feasible panel by {r['lift_range'][0]}× to
+{r['lift_range'][1]}×.** Qubits are cheap here; gates are not. The AND-rules
+expand into terms of up to {r['max_term_order']} bodies, each needing a multi-qubit
+phase, so the cost layer is heavier than on a pairwise instance.
+
+{depth_note}
+
+{greedy_note}
+""")
+    if q is None:
+        out.append("Qiskit reproduction not run: `python experiments/run_qiskit_reproduction.py`.\n")
+    else:
+        out.append(f"""### Reproduced on Qiskit
+
+Every other number in this report comes from this package's own simulator,
+which makes it a single point of failure. To remove that, both ansatzes are
+optimised here, exported to OpenQASM 2.0 with the angles baked in, and run by
+Qiskit {q['qiskit']}'s `StatevectorSampler` — a different code base, parsing the
+circuit from text — at {q['shots']:,} shots.
+
+**{q['agree']} of {q['runs']} runs agree within shot noise** (largest deviation
+{q['max_abs_z']} standard errors), and the minimum statevector fidelity between the
+two simulators is {q['min_fidelity']:.12f}. The circuits in `qbm/interop.py` are
+therefore the circuits the results describe, and they run unmodified on any
+OpenQASM 2.0 toolchain.
+""")
+    return "\n".join(out)
+
+
 def render(S: dict) -> str:
     f, d, h = S["flagship"], S["discriminating_power"], S["head_to_head"]
     p, n = S["penalty_landscape"], S["noise"]
@@ -65,7 +271,7 @@ def render(S: dict) -> str:
             f"by the data, so the honest reading is that QAOA at its best depth is "
             f"comparable to the classical heuristics here \u2014 not that it beats them.")
 
-    # Section 8 restates section 4's verdict, so it is derived from the same
+    # Section 10 restates section 4's verdict, so it is derived from the same
     # numbers rather than written once and left to drift.
     if not _beaten:
         interpretation_opening = (
@@ -107,6 +313,18 @@ def render(S: dict) -> str:
     qaoa_by_size = " | ".join(_pct(_by_size(h["qaoa_reaches_optimum_by_size"], k)) for k in SIZES)
     span_row = " | ".join(f"{_by_size(p['useful_span_percent_of_spectrum'], k):.2f}" for k in SIZES)
     neg_row = " | ".join(f"{100 * _by_size(p['negative_energy_fraction_by_size'], k):.1f}%" for k in SIZES)
+
+    constrained_sections = _constrained_sections(S)
+    _c = S.get("constrained")
+    mixer_claim = (
+        "Constraint-preserving mixers (XY-mixers on a fixed-Hamming-weight "
+        "subspace) remove the penalty term entirely; they are untested here."
+        if _c is None else
+        f"Section 8 tests the constraint-preserving alternative: in noiseless "
+        f"simulation it beats a random feasible panel on "
+        f"{_pct(_c['constrained_beats_random_fraction'])} of runs, where the penalty "
+        f"ansatz loses to one on {_pct(_c['penalty_below_random_fraction'])}. Whether "
+        f"that survives hardware noise, given its fixed preparation cost, is untested.")
 
     return f"""# Q-BenchMed-Heme \u2014 Benchmark Report
 
@@ -353,18 +571,32 @@ and the head-to-head conclusion changed: QAOA p=2 went from 72% to 92%, and from
 loop failing, not the ansatz. The spectrum measurements in section 5 are
 properties of the QUBO and were unaffected.
 
-## 8. Interpretation
+### A fourth defect: the same phase bug, in new code
+
+Building the constrained ansatz of section 8, its cost layer was written as
+`exp(-iE) ** gamma` — the exact construction that invalidated the first noise
+sweep. It was caught before any result was written, because the exported
+OpenQASM circuit, which computes the phase correctly, disagreed with the
+simulator on six of eight test cases. A regression test now pins it, and the
+Qiskit reproduction in section 9 keeps an independent code base in the loop.
+
+A defect that recurs in new code is an argument for keeping the check that
+caught it, not for trusting the author more.
+
+{constrained_sections}
+## 10. Interpretation
 
 {interpretation_opening} Three conditions would each have to change before
 QAOA could be called a better choice than the classical baselines here.
 
 1. **The instance would have to be hard.** Certified optima in milliseconds
-   leave nothing to win. Coverage is submodular; that is the obstacle.
+   leave nothing to win. The generated instances QAOA can reach are
+   disjunctive, so coverage on them is submodular and greedy carries a
+   guarantee. The real instance is conjunctive, and greedy stalls there, but it
+   is simulable only in slices small enough that greedy still wins.
 2. **The encoding would have to stop wasting the spectrum.** Constraint-as-
    penalty puts >99% of the energy range outside the region of interest.
-   Constraint-preserving mixers (XY-mixers on a fixed-Hamming-weight subspace)
-   would remove the penalty term entirely and are the single most promising
-   change available.
+   {mixer_claim}
 3. **Noise would have to be far below current rates.** Two-qubit error at 1%
    already shifts the mean energy substantially against its ideal value.
 
@@ -375,16 +607,21 @@ that nothing here extrapolates to 66 inputs.
 stated that classical heuristics beat QAOA at every depth. That conclusion was
 an artefact of the parameter search, not of the ansatz — see section 7.
 
-## 9. Limitations
+## 11. Limitations
 
 - Python reference implementation, not the Rust core.
 - The flagship instance is the real 66\u00d788 export; the SYNTHETIC instances are
   the generator's, used only for the structural survey and the head-to-head.
 - Simulable range is 8\u201316 inputs. The flagship's exact QUBO needs 154+ qubits.
-- 10 instance seeds in the head-to-head, 3 in the noise sweep \u2014 below the 30
-  the specification suggests for stochastic experiments.
+- 5 instance seeds per size in the head-to-head (25 instances), 3 in the noise
+  sweep \u2014 below the 30 the specification suggests for stochastic experiments.
 - Trajectory-based noise, not full density-matrix evolution.
 - Single classical optimizer (COBYLA) for the variational loop.
-- Only one QAOA variant: standard transverse-field mixer, no warm starts, no
-  constraint-preserving mixer.
+- Two QAOA variants: the standard transverse-field mixer and an XY ring mixer.
+  No warm starts. The constrained variant has not been run under noise.
+- Real-instance slices stop at 16 biomarkers. Their multi-body cost terms are
+  priced as unshared CX ladders, an upper bound.
+- OpenQASM export covers pairwise coverage only; a conjunctive cost layer needs
+  multi-controlled phases the exporter does not emit, so the Qiskit
+  reproduction runs on the degree-capped instances.
 """

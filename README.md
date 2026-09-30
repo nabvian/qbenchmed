@@ -45,11 +45,28 @@ what changed and why.
 The result that survived is about the encoding. The budget constraint is
 expressed as a penalty, and those penalty terms run 85 to 374 times larger than
 the coverage signal, leaving under 1% of the energy spectrum holding anything
-useful. Replacing the penalty with a constraint-preserving mixer is the next
-experiment, and it is the one the measurements point at.
+useful.
 
-No quantum advantage is claimed. Nothing here extrapolates beyond 16 inputs,
-which is where state-vector simulation stops.
+That made a prediction, and it has now been tested. A constrained ansatz that
+never leaves the set of valid panels (a Dicke-state start and an XY ring mixer,
+with no penalty at all) was run on the same instances:
+
+| depth | penalty QAOA vs a random valid panel | constrained QAOA vs a random valid panel |
+|---|---|---|
+| 1 | 0.02× | 5.0× |
+| 2 | 0.26× | 9.1× |
+| 3 | 0.05× | 13.3× |
+
+The penalty version almost always does worse than guessing; the constrained
+one beats guessing on every instance, with its largest margin at the largest
+size tested. It also runs on slices
+of the real instance using 10 to 16 qubits, where the penalty encoding needs 85
+to 120. Both ansatzes were reproduced independently on Qiskit, 18 of 18 runs in
+agreement.
+
+No quantum advantage is claimed. Everything is noiseless simulation, nothing
+extrapolates beyond 16 inputs, and at the sizes that can be simulated greedy
+still finds the optimum.
 
 ## Two implementations
 
@@ -114,6 +131,8 @@ qbm/
   qubo.py           QUBO construction, three encodings, Ising conversion
   classical.py      exhaustive, ILP via HiGHS, greedy, annealing, tabu
   qaoa.py           QAOA ansatz, grid-seeded parameter search
+  constrained.py    constrained-mixer QAOA: Dicke state, XY ring, no penalty
+  interop.py        CPLEX LP and OpenQASM 2.0 export, Dicke-state circuit
   simulator.py      state-vector simulator with gate resource accounting
   noise.py          trajectory-based noise channels
   runner.py         one code path that prepares every solver's problem
@@ -145,15 +164,20 @@ written independently, sharing no code, agreeing to the digit on the reference
 instance.
 
 The quantum side is a simulation, at sizes a state-vector simulator can hold.
-It has produced one clear result — the penalty encoding wastes the spectrum —
-and one clear next step, which is a constraint-preserving mixer over a fixed
-Hamming-weight subspace. That experiment has not been run. Neither has anything
-on hardware.
+It has produced two results: the penalty encoding wastes the spectrum, and a
+constrained mixer that removes the penalty beats random guessing where the
+penalty version cannot. Both are noiseless. Nothing has run on hardware, and
+the constrained mixer's advantage has not been tested under noise, where its
+state-preparation cost counts against it.
 
-Three defects have been found and recorded so far. One invalidated a whole
-noise sweep; one reversed the headline conclusion. Each is written up in
-section 7 of the report, with what it changed, and the invalidated table is
-kept rather than deleted. Expect more.
+The circuits export as OpenQASM 2.0 and the problem as a CPLEX LP file, so
+either can be taken to another toolchain without this package.
+
+Four defects have been found and recorded so far. One invalidated a whole
+noise sweep; one reversed the headline conclusion; one was the first of those
+recurring in new code, caught by the Qiskit cross-check before it reached a
+result. Each is written up in section 7 of the report, with what it changed, and
+the invalidated table is kept rather than deleted. Expect more.
 
 ## Scope, and what this is not
 

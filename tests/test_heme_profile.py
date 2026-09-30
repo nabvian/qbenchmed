@@ -181,3 +181,21 @@ def test_structural_findings_report_the_four_interpretation_caveats(prof):
     assert "effective decision dimension is 42" in text
     assert "constant" in text
     assert "alternative rule arms" in text
+
+
+def test_real_instance_can_be_sliced():
+    """Regression: the real instance carries seed -1, which NumPy's RNG rejects.
+
+    subinstance() used that sentinel as its tie-break seed, so scaling_ladder
+    and every slice of QBMED-HEME-001 crashed.  Slices must also be
+    deterministic and keep every surviving arm whole.
+    """
+    from qbm import instances as ins
+    heme = ins.heme_benchmark()
+    assert heme.seed < 0
+    a = heme.subinstance(12)
+    b = heme.subinstance(12)
+    assert a.n_inputs == 12
+    assert np.array_equal(a.A, b.A) and a.arms == b.arms
+    assert all(all(0 <= i < 12 for i in mem) for _, mem in a.arms)
+    assert [s.n_inputs for s in ins.scaling_ladder(heme, sizes=(10, 20))] == [10, 20]
