@@ -1,5 +1,5 @@
 {
-  "python": "3.14.5",
+  "python": "3.14.7",
   "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
   "machine": "arm64",
   "processor": "arm",
@@ -8,7 +8,7 @@
     "scipy": "1.18.1",
     "pandas": "3.0.6",
     "matplotlib": null,
-    "qiskit": null,
+    "qiskit": "2.5.2",
     "dimod": null,
     "pytest": "9.1.1"
   },

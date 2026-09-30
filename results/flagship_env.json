@@ -1,6 +1,6 @@
 {
   "environment": {
-    "python": "3.14.5",
+    "python": "3.14.7",
     "implementation": "CPython",
     "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
     "machine": "arm64",
@@ -8,10 +8,10 @@
     "packages": {
       "numpy": "2.5.3",
       "scipy": "1.18.1",
-      "pandas": "3.0.5",
-      "matplotlib": "3.11.2"
+      "pandas": "3.0.6",
+      "matplotlib": null
     },
-    "git_commit": null
+    "git_commit": "ecbcf1cf00515fd318783952d994fe2f1e463823"
   },
   "benchmark_id": "QBMED-HEME-001",
   "n_inputs": 66,
@@ -22,5 +22,5 @@
   "seed": 42,
   "provenance": "real pathology export (implementation audit of a rule engine)",
   "schema_version": "qbm-result/1.1.0",
-  "total_runtime_s": 2.2
+  "total_runtime_s": 2.1
 }

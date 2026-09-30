@@ -47,7 +47,12 @@ def cells():
         n_out = int(round(n_in * 88 / 66))
         inst = ins.generate(regime, n_in, n_out, seed=seed)
         yield inst, k_frac, seed, "QBM-SYN"
-    flagship = ins.heme_benchmark()
+    try:
+        flagship = ins.heme_benchmark()
+    except ins.HemeDomainUnavailable:
+        print("QBMED-HEME-001 is not in this checkout; using the synthetic "
+              "conjunctive panel for the profile regime.")
+        flagship = ins.conjunctive_panel(66, 88, seed=42)
     for k_frac in K_FRACS:
         yield flagship, k_frac, 0, "QBMED-HEME-001"
 

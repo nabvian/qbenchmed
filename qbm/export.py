@@ -229,6 +229,99 @@ def build_benchmark_profile(
     return document
 
 
+def build_profile_from_instance(
+    instance,
+    *,
+    profile_id: str,
+    title: str,
+    area: str = "synthetic",
+    population: str = "Synthetic structural fixture, no cohort",
+    input_semantics: str = "A synthetic selectable input",
+    outcome_semantics: str = "A synthetic coverage target",
+) -> dict:
+    """Project a core `Instance` onto the Platform's profile schema.
+
+    `build_benchmark_profile` takes a `DomainProfile`, which carries biomedical
+    provenance.  A generated instance has none: it is an incidence matrix plus
+    a list of arms.  This exists so a synthetic instance can be handed to the
+    Platform without inventing a domain layer for it.
+
+    Arms become path groups.  A one-member arm keeps the empty path, which is
+    the plain "any one of these covers it" reading, so an instance generated
+    without arms projects as ordinary incidence.  An empty arm marks an outcome
+    the rules emit unconditionally.
+    """
+    n_in, n_out = instance.A.shape
+    inputs = [
+        {"id": f"in.{i:03d}", "label": f"Input {i:03d}",
+         "cost": round(float(instance.c[i]), 6), "tags": []}
+        for i in range(n_in)
+    ]
+    outcomes = [
+        {"id": f"out.{j:03d}", "label": f"Outcome {j:03d}",
+         "weight": round(float(instance.w[j]), 6), "tags": []}
+        for j in range(n_out)
+    ]
+
+    arms = instance.arms
+    if arms is None:
+        arms = [(j, (i,)) for i in range(n_in) for j in range(n_out) if instance.A[i, j]]
+
+    unconditional, relationships = set(), []
+    per_outcome: dict[int, int] = {}
+    for outcome, members in arms:
+        if not members:
+            unconditional.add(f"out.{outcome:03d}")
+            continue
+        index = per_outcome.get(outcome, 0)
+        per_outcome[outcome] = index + 1
+        path = f"a{index}" if len(members) > 1 else ""
+        for member in members:
+            row = {"input_id": f"in.{member:03d}", "outcome_id": f"out.{outcome:03d}"}
+            if path:
+                row["path"] = path
+            relationships.append(row)
+
+    def sort_key(row: dict) -> tuple:
+        return (row["input_id"], row["outcome_id"], row.get("path", ""))
+
+    relationships.sort(key=sort_key)
+    deduplicated: list[dict] = []
+    for row in relationships:
+        if not deduplicated or sort_key(deduplicated[-1]) != sort_key(row):
+            deduplicated.append(row)
+
+    document = {
+        "schema_version": SCHEMA_VERSION,
+        "profile_id": _check_id(profile_id, "profile_id"),
+        "title": title,
+        "biomedical_scope": {
+            "area": area,
+            "population": population,
+            "input_semantics": input_semantics,
+            "outcome_semantics": outcome_semantics,
+        },
+        "inputs": inputs,
+        "outcomes": outcomes,
+        "relationships": deduplicated,
+        "constraints": {
+            "min_selected": 0, "max_selected": None, "max_total_cost": None,
+            "required_inputs": [], "excluded_inputs": [], "required_outcomes": [],
+        },
+        "objective": "maximize_weighted_coverage",
+        "provenance": {
+            "generated_by": "qbm.export/v2",
+            "source_revision": f"{instance.regime}:seed{instance.seed}",
+            "source_artifact_ids": [_check_id(f"instance:{instance.instance_id}",
+                                              "source_artifact_id")],
+            "projection_method": instance.notes or "generated instance",
+        },
+    }
+    if unconditional:
+        document["unconditional_outcomes"] = sorted(unconditional)
+    return document
+
+
 def write_benchmark_profile(profile: DomainProfile, path: str | Path, **kwargs) -> Path:
     """Write the projected document, creating parent directories as needed."""
     document = build_benchmark_profile(profile, **kwargs)

@@ -1,0 +1,1194 @@
+{
+  "schema_version": "qbm.benchmark-profile/v2",
+  "profile_id": "synthetic/conj-40x50",
+  "title": "Synthetic conjunctive panel (40x50)",
+  "biomedical_scope": {
+    "area": "synthetic",
+    "population": "Synthetic structural fixture, no cohort",
+    "input_semantics": "A synthetic selectable input",
+    "outcome_semantics": "A synthetic coverage target"
+  },
+  "inputs": [
+    {
+      "id": "in.000",
+      "label": "Input 000",
+      "cost": 1.537088,
+      "tags": []
+    },
+    {
+      "id": "in.001",
+      "label": "Input 001",
+      "cost": 1.897763,
+      "tags": []
+    },
+    {
+      "id": "in.002",
+      "label": "Input 002",
+      "cost": 1.768245,
+      "tags": []
+    },
+    {
+      "id": "in.003",
+      "label": "Input 003",
+      "cost": 2.687957,
+      "tags": []
+    },
+    {
+      "id": "in.004",
+      "label": "Input 004",
+      "cost": 2.722404,
+      "tags": []
+    },
+    {
+      "id": "in.005",
+      "label": "Input 005",
+      "cost": 2.797225,
+      "tags": []
+    },
+    {
+      "id": "in.006",
+      "label": "Input 006",
+      "cost": 2.407412,
+      "tags": []
+    },
+    {
+      "id": "in.007",
+      "label": "Input 007",
+      "cost": 1.689976,
+      "tags": []
+    },
+    {
+      "id": "in.008",
+      "label": "Input 008",
+      "cost": 1.777926,
+      "tags": []
+    },
+    {
+      "id": "in.009",
+      "label": "Input 009",
+      "cost": 1.547275,
+      "tags": []
+    },
+    {
+      "id": "in.010",
+      "label": "Input 010",
+      "cost": 1.551068,
+      "tags": []
+    },
+    {
+      "id": "in.011",
+      "label": "Input 011",
+      "cost": 1.046739,
+      "tags": []
+    },
+    {
+      "id": "in.012",
+      "label": "Input 012",
+      "cost": 2.405111,
+      "tags": []
+    },
+    {
+      "id": "in.013",
+      "label": "Input 013",
+      "cost": 1.310333,
+      "tags": []
+    },
+    {
+      "id": "in.014",
+      "label": "Input 014",
+      "cost": 1.032757,
+      "tags": []
+    },
+    {
+      "id": "in.015",
+      "label": "Input 015",
+      "cost": 1.669426,
+      "tags": []
+    },
+    {
+      "id": "in.016",
+      "label": "Input 016",
+      "cost": 2.200414,
+      "tags": []
+    },
+    {
+      "id": "in.017",
+      "label": "Input 017",
+      "cost": 1.614507,
+      "tags": []
+    },
+    {
+      "id": "in.018",
+      "label": "Input 018",
+      "cost": 1.491886,
+      "tags": []
+    },
+    {
+      "id": "in.019",
+      "label": "Input 019",
+      "cost": 2.061566,
+      "tags": []
+    },
+    {
+      "id": "in.020",
+      "label": "Input 020",
+      "cost": 1.195918,
+      "tags": []
+    },
+    {
+      "id": "in.021",
+      "label": "Input 021",
+      "cost": 1.012527,
+      "tags": []
+    },
+    {
+      "id": "in.022",
+      "label": "Input 022",
+      "cost": 1.917157,
+      "tags": []
+    },
+    {
+      "id": "in.023",
+      "label": "Input 023",
+      "cost": 1.790974,
+      "tags": []
+    },
+    {
+      "id": "in.024",
+      "label": "Input 024",
+      "cost": 2.588817,
+      "tags": []
+    },
+    {
+      "id": "in.025",
+      "label": "Input 025",
+      "cost": 1.57914,
+      "tags": []
+    },
+    {
+      "id": "in.026",
+      "label": "Input 026",
+      "cost": 2.371769,
+      "tags": []
+    },
+    {
+      "id": "in.027",
+      "label": "Input 027",
+      "cost": 1.019889,
+      "tags": []
+    },
+    {
+      "id": "in.028",
+      "label": "Input 028",
+      "cost": 1.030421,
+      "tags": []
+    },
+    {
+      "id": "in.029",
+      "label": "Input 029",
+      "cost": 1.930138,
+      "tags": []
+    },
+    {
+      "id": "in.030",
+      "label": "Input 030",
+      "cost": 1.282165,
+      "tags": []
+    },
+    {
+      "id": "in.031",
+      "label": "Input 031",
+      "cost": 1.076698,
+      "tags": []
+    },
+    {
+      "id": "in.032",
+      "label": "Input 032",
+      "cost": 1.150673,
+      "tags": []
+    },
+    {
+      "id": "in.033",
+      "label": "Input 033",
+      "cost": 1.509378,
+      "tags": []
+    },
+    {
+      "id": "in.034",
+      "label": "Input 034",
+      "cost": 1.448289,
+      "tags": []
+    },
+    {
+      "id": "in.035",
+      "label": "Input 035",
+      "cost": 1.857793,
+      "tags": []
+    },
+    {
+      "id": "in.036",
+      "label": "Input 036",
+      "cost": 2.651494,
+      "tags": []
+    },
+    {
+      "id": "in.037",
+      "label": "Input 037",
+      "cost": 1.49442,
+      "tags": []
+    },
+    {
+      "id": "in.038",
+      "label": "Input 038",
+      "cost": 1.224236,
+      "tags": []
+    },
+    {
+      "id": "in.039",
+      "label": "Input 039",
+      "cost": 1.887081,
+      "tags": []
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "out.000",
+      "label": "Outcome 000",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.001",
+      "label": "Outcome 001",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.002",
+      "label": "Outcome 002",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.003",
+      "label": "Outcome 003",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.004",
+      "label": "Outcome 004",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.005",
+      "label": "Outcome 005",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.006",
+      "label": "Outcome 006",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.007",
+      "label": "Outcome 007",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.008",
+      "label": "Outcome 008",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.009",
+      "label": "Outcome 009",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.010",
+      "label": "Outcome 010",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.011",
+      "label": "Outcome 011",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.012",
+      "label": "Outcome 012",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.013",
+      "label": "Outcome 013",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.014",
+      "label": "Outcome 014",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.015",
+      "label": "Outcome 015",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.016",
+      "label": "Outcome 016",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.017",
+      "label": "Outcome 017",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.018",
+      "label": "Outcome 018",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.019",
+      "label": "Outcome 019",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.020",
+      "label": "Outcome 020",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.021",
+      "label": "Outcome 021",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.022",
+      "label": "Outcome 022",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.023",
+      "label": "Outcome 023",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.024",
+      "label": "Outcome 024",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.025",
+      "label": "Outcome 025",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.026",
+      "label": "Outcome 026",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.027",
+      "label": "Outcome 027",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.028",
+      "label": "Outcome 028",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.029",
+      "label": "Outcome 029",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.030",
+      "label": "Outcome 030",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.031",
+      "label": "Outcome 031",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.032",
+      "label": "Outcome 032",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.033",
+      "label": "Outcome 033",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.034",
+      "label": "Outcome 034",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.035",
+      "label": "Outcome 035",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.036",
+      "label": "Outcome 036",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.037",
+      "label": "Outcome 037",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.038",
+      "label": "Outcome 038",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.039",
+      "label": "Outcome 039",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.040",
+      "label": "Outcome 040",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.041",
+      "label": "Outcome 041",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.042",
+      "label": "Outcome 042",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.043",
+      "label": "Outcome 043",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.044",
+      "label": "Outcome 044",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.045",
+      "label": "Outcome 045",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.046",
+      "label": "Outcome 046",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.047",
+      "label": "Outcome 047",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.048",
+      "label": "Outcome 048",
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "out.049",
+      "label": "Outcome 049",
+      "weight": 1.0,
+      "tags": []
+    }
+  ],
+  "relationships": [
+    {
+      "input_id": "in.001",
+      "outcome_id": "out.001",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.002",
+      "outcome_id": "out.009",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.002",
+      "outcome_id": "out.012",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.002",
+      "outcome_id": "out.015",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.002",
+      "outcome_id": "out.026",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.002",
+      "outcome_id": "out.041",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.002",
+      "outcome_id": "out.049",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.003",
+      "outcome_id": "out.002",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.003",
+      "outcome_id": "out.040",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.003",
+      "outcome_id": "out.041",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.004",
+      "outcome_id": "out.009",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.001",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.002"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.006"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.014",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.015",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.017",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.018",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.022",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.023",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.028",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.034",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.036",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.039",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.040",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.043",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.048",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.005",
+      "outcome_id": "out.049",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.007",
+      "outcome_id": "out.022",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.007",
+      "outcome_id": "out.025",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.007",
+      "outcome_id": "out.039",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.009",
+      "outcome_id": "out.048",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.010",
+      "outcome_id": "out.024",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.010",
+      "outcome_id": "out.039",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.010",
+      "outcome_id": "out.046"
+    },
+    {
+      "input_id": "in.011",
+      "outcome_id": "out.002",
+      "path": "a2"
+    },
+    {
+      "input_id": "in.011",
+      "outcome_id": "out.009",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.012",
+      "outcome_id": "out.002",
+      "path": "a2"
+    },
+    {
+      "input_id": "in.012",
+      "outcome_id": "out.008"
+    },
+    {
+      "input_id": "in.012",
+      "outcome_id": "out.016",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.012",
+      "outcome_id": "out.017",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.013",
+      "outcome_id": "out.001",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.013",
+      "outcome_id": "out.028",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.013",
+      "outcome_id": "out.040",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.014",
+      "outcome_id": "out.000"
+    },
+    {
+      "input_id": "in.015",
+      "outcome_id": "out.012",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.015",
+      "outcome_id": "out.013"
+    },
+    {
+      "input_id": "in.015",
+      "outcome_id": "out.040",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.015",
+      "outcome_id": "out.042",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.015",
+      "outcome_id": "out.043",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.016",
+      "outcome_id": "out.048",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.017",
+      "outcome_id": "out.022",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.017",
+      "outcome_id": "out.028",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.018",
+      "outcome_id": "out.009",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.018",
+      "outcome_id": "out.040",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.019",
+      "outcome_id": "out.039",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.020",
+      "outcome_id": "out.009",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.020",
+      "outcome_id": "out.040",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.021",
+      "outcome_id": "out.011"
+    },
+    {
+      "input_id": "in.021",
+      "outcome_id": "out.029",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.021",
+      "outcome_id": "out.044",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.021",
+      "outcome_id": "out.045",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.022",
+      "outcome_id": "out.020"
+    },
+    {
+      "input_id": "in.022",
+      "outcome_id": "out.037"
+    },
+    {
+      "input_id": "in.024",
+      "outcome_id": "out.048",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.025",
+      "outcome_id": "out.007",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.025",
+      "outcome_id": "out.014",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.025",
+      "outcome_id": "out.031",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.025",
+      "outcome_id": "out.035",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.025",
+      "outcome_id": "out.047",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.026",
+      "outcome_id": "out.040",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.027",
+      "outcome_id": "out.035",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.029",
+      "outcome_id": "out.018",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.029",
+      "outcome_id": "out.025",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.029",
+      "outcome_id": "out.026",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.029",
+      "outcome_id": "out.029",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.029",
+      "outcome_id": "out.030"
+    },
+    {
+      "input_id": "in.030",
+      "outcome_id": "out.043",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.001",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.002",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.003"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.005"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.007",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.010",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.011"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.014",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.016",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.021",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.023",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.024",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.025",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.027",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.028",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.033"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.039"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.040",
+      "path": "a1"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.041",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.045",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.031",
+      "outcome_id": "out.047",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.033",
+      "outcome_id": "out.012",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.033",
+      "outcome_id": "out.021",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.034",
+      "outcome_id": "out.018",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.034",
+      "outcome_id": "out.042",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.035",
+      "outcome_id": "out.027",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.035",
+      "outcome_id": "out.029",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.036",
+      "outcome_id": "out.006"
+    },
+    {
+      "input_id": "in.036",
+      "outcome_id": "out.019"
+    },
+    {
+      "input_id": "in.036",
+      "outcome_id": "out.021",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.036",
+      "outcome_id": "out.031",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.037",
+      "outcome_id": "out.010",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.037",
+      "outcome_id": "out.044",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.002"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.008"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.009"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.018",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.025",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.027",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.028",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.031"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.031",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.034",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.036",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.042",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.044",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.045",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.038",
+      "outcome_id": "out.048",
+      "path": "a0"
+    },
+    {
+      "input_id": "in.039",
+      "outcome_id": "out.012"
+    },
+    {
+      "input_id": "in.039",
+      "outcome_id": "out.039"
+    }
+  ],
+  "constraints": {
+    "min_selected": 0,
+    "max_selected": null,
+    "max_total_cost": null,
+    "required_inputs": [],
+    "excluded_inputs": [],
+    "required_outcomes": []
+  },
+  "objective": "maximize_weighted_coverage",
+  "provenance": {
+    "generated_by": "qbm.export/v2",
+    "source_revision": "conjunctive_panel:seed11",
+    "source_artifact_ids": [
+      "instance:QBM-SYN-CONJ"
+    ],
+    "projection_method": "SYNTHETIC conjunctive instance, shape-calibrated to QBMED-HEME-001. Contains no clinical content and supports no clinical claim."
+  },
+  "unconditional_outcomes": [
+    "out.004"
+  ]
+}

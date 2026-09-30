@@ -1,5 +1,8 @@
 # Q-BenchMed
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nabvian/qbenchmed/blob/main/notebooks/qbenchmed_colab.ipynb)
+
 Does quantum optimisation help on a real biomedical decision problem?
 
 Q-BenchMed answers that for one concrete problem: given a set of biomarkers you
@@ -99,6 +102,10 @@ pip install -e ".[dev]"
 pytest tests/ -q
 ```
 
+Or run the comparison in the browser with no local install:
+[notebooks/qbenchmed_colab.ipynb](notebooks/qbenchmed_colab.ipynb), about four
+minutes on a free CPU runtime.
+
 ```
 qbm/
   instances.py      instance generators, six structural regimes
@@ -115,21 +122,38 @@ qbm/
 
 ## Documentation
 
-[docs/TESTING.md](docs/TESTING.md) covers running both suites, reproducing the
-published results, and what the tests do not cover.
+| | |
+|---|---|
+| [USAGE.md](USAGE.md) | running both halves, end to end |
+| [RESULTS.md](RESULTS.md) | everything measured so far, in one page |
+| [BENCHMARK_INVARIANTS.md](BENCHMARK_INVARIANTS.md) | the seven rules the benchmark does not break |
+| [reproducibility/REPORT.md](reproducibility/REPORT.md) | the full result report, regenerated from the tables |
+| [docs/TESTING.md](docs/TESTING.md) | both suites, reproducing the numbers, what is not covered |
+| [docs/PREPARING-A-PACK.md](docs/PREPARING-A-PACK.md) | preparing your own project so the Platform can read it |
+| [docs/formulation.md](docs/formulation.md) | the mathematics |
+| [Platform/README.md](Platform/README.md) | the fourteen stages, the profile contract, the safety boundaries |
 
-[docs/PREPARING-A-PACK.md](docs/PREPARING-A-PACK.md) explains how to prepare
-your own project so the Platform can read it, including the declared-domain
-requirement that most projects miss on the first attempt.
+Every number in the report is read from a result table rather than
+transcribed, and since the last revision its conclusions are derived from those
+tables too. The raw tables are in [results/](results/), one CSV per experiment
+with the environment and measured runtime recorded alongside.
 
-[docs/formulation.md](docs/formulation.md) gives the mathematical formulation.
+## Status, honestly
 
-[reproducibility/REPORT.md](reproducibility/REPORT.md) is the full result
-report. Every number in it is read from a result table rather than transcribed,
-and since the last revision its conclusions are derived from those tables too.
+The classical side is finished and cross-validated: two certified solvers
+written independently, sharing no code, agreeing to the digit on the reference
+instance.
 
-[Platform/README.md](Platform/README.md) documents the fourteen stages, the
-profile contract, and the safety boundaries.
+The quantum side is a simulation, at sizes a state-vector simulator can hold.
+It has produced one clear result — the penalty encoding wastes the spectrum —
+and one clear next step, which is a constraint-preserving mixer over a fixed
+Hamming-weight subspace. That experiment has not been run. Neither has anything
+on hardware.
+
+Three defects have been found and recorded so far. One invalidated a whole
+noise sweep; one reversed the headline conclusion. Each is written up in
+section 7 of the report, with what it changed, and the invalidated table is
+kept rather than deleted. Expect more.
 
 ## Scope, and what this is not
 
@@ -155,3 +179,28 @@ Section 13 matters here because the Platform serves a browser interface over
 HTTP. If you run a modified version and let other people use it over a network,
 you have to offer them the source of your modified version. Running it on your
 own machine, which is the normal case, triggers nothing.
+
+## Collaboration
+
+Koushik Das — engikd1993@gmail.com
+
+Bugs, questions and disagreements with the conclusions are all welcome as
+issues. A disagreement backed by a run is the most useful kind: the result
+tables and the environment fingerprints are in the repository precisely so that
+one can be checked against another.
+
+Three things would particularly benefit from another pair of hands:
+
+- **The constrained-mixer experiment.** An XY mixer over a fixed Hamming-weight
+  subspace removes the penalty term the measurements point at. The
+  infrastructure to run and score it is already here; the mixer is not.
+- **Hardware.** Everything is simulated. The executor interface is
+  provider-neutral and unused, and the noise sweep says two-qubit error is what
+  will decide a real run.
+- **More instances.** The benchmark is built around one real conjunctive
+  instance. A second one, from a different domain, would say a great deal about
+  which of these results are about the problem and which are about this problem.
+
+If you have a biomedical project you want analysed rather than a quantum method
+you want tested, [docs/PREPARING-A-PACK.md](docs/PREPARING-A-PACK.md) is the
+place to start.

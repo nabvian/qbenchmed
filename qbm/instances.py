@@ -569,6 +569,94 @@ def _heme_shaped(n_inputs: int, n_outcomes: int, rng: np.random.Generator) -> np
     return A
 
 
+class HemeDomainUnavailable(ImportError):
+    """Raised when the QBMED-HEME-001 domain module cannot be imported.
+
+    It ships with this package, so a normal checkout never sees this. A partial
+    install or a vendored subset can. Everything else works without it,
+    including every quantum experiment: the QAOA comparison and the noise sweep
+    both run on generated instances and never load a domain.
+    """
+
+
+def conjunctive_panel(n_inputs: int = 66, n_outcomes: int = 88, seed: int = 11,
+                      *, weight_scheme: str = "uniform",
+                      instance_id: str = "QBM-SYN-CONJ") -> Instance:
+    """A synthetic panel instance with conjunctive rule arms.
+
+    `generate` produces binary incidence: every edge stands alone, so coverage
+    is submodular and greedy carries its usual guarantee.  Real rule sets are
+    not like that, and the property that makes them interesting -- outcomes
+    that fire only on a combination of inputs -- cannot be expressed by an
+    incidence matrix at all.
+
+    This builds the missing case.  The shape is calibrated to the published
+    QBMED-HEME-001 benchmark so that a reader without access to that instance
+    can still exercise the same behaviour: hub inputs with high degree, most
+    outcomes carrying one arm and a minority carrying several, arm sizes
+    skewed towards two and three, a few outcomes reachable by nothing, and a
+    couple fired unconditionally.
+
+    It is a structural imitation and nothing more.  It contains no clinical
+    content, no biomarker identities and no knowledge of any kind, and a result
+    computed on it says nothing about the real instance beyond the fact that
+    both are conjunctive.
+    """
+    rng = np.random.default_rng(seed)
+
+    # A few hub inputs carry most of the degree, as index parameters do in a
+    # real panel; the rest are specialised.
+    n_hub = max(2, n_inputs // 11)
+    hubs = rng.choice(n_inputs, size=n_hub, replace=False)
+    weights = np.full(n_inputs, 1.0)
+    weights[hubs] = 12.0
+    weights /= weights.sum()
+
+    # Arm sizes follow the measured distribution of the reference instance.
+    sizes, freqs = np.array([1, 2, 3, 4, 5, 6]), np.array([30, 44, 31, 7, 3, 1])
+    size_p = freqs / freqs.sum()
+    # Most outcomes are defined by one arm; a minority by several.
+    counts, count_freqs = np.array([1, 2, 3, 4, 5]), np.array([63, 15, 2, 3, 1])
+    count_p = count_freqs / count_freqs.sum()
+
+    n_unreachable = max(1, round(n_outcomes * 4 / 88))
+    n_unconditional = max(1, round(n_outcomes * 2 / 88))
+    order = rng.permutation(n_outcomes)
+    unreachable = set(order[:n_unreachable].tolist())
+    unconditional = set(order[n_unreachable:n_unreachable + n_unconditional].tolist())
+
+    arms: list[tuple[int, tuple[int, ...]]] = []
+    for outcome in range(n_outcomes):
+        if outcome in unreachable:
+            continue
+        if outcome in unconditional:
+            arms.append((outcome, ()))
+            continue
+        for _ in range(int(rng.choice(counts, p=count_p))):
+            size = min(int(rng.choice(sizes, p=size_p)), n_inputs)
+            members = rng.choice(n_inputs, size=size, replace=False, p=weights)
+            arms.append((outcome, tuple(sorted(int(m) for m in members))))
+
+    # A is the OR-flattening of the arms, which the Instance invariant requires.
+    A = np.zeros((n_inputs, n_outcomes), dtype=np.uint8)
+    for outcome, members in arms:
+        for member in members:
+            A[member, outcome] = 1
+
+    return Instance(
+        instance_id=instance_id,
+        regime="conjunctive_panel",
+        seed=seed,
+        A=A,
+        w=make_weights(A, weight_scheme, rng),
+        c=make_costs(n_inputs, rng),
+        arms=arms,
+        notes=("SYNTHETIC conjunctive instance, shape-calibrated to "
+               "QBMED-HEME-001. Contains no clinical content and supports no "
+               "clinical claim."),
+    )
+
+
 def heme_benchmark(seed: int = 42, weight_scheme: str = "uniform",
                    instance_id: str = "QBMED-HEME-001") -> Instance:
     """The flagship 66-input / 88-outcome benchmark instance (spec section 3).
@@ -584,7 +672,20 @@ def heme_benchmark(seed: int = 42, weight_scheme: str = "uniform",
     benchmark rather than the benchmark itself; the instance_id is suffixed so
     the two can never be confused in a results table.
     """
-    from qbm.domains import heme as _heme  # local: core must not import domains
+    # Local import: the core must not depend on the domain layer, so the one
+    # place a domain is named is here. See HemeDomainUnavailable below.
+    try:
+        from qbm.domains import heme as _heme
+    except ImportError as error:  # pragma: no cover - depends on the checkout
+        raise HemeDomainUnavailable(
+            "qbm.domains.heme could not be imported, so QBMED-HEME-001 is "
+            "unavailable in this checkout. It ships with the package, so this "
+            "usually means a partial install.\n\n"
+            "qbm.instances.conjunctive_panel() gives a synthetic instance with "
+            "the same structural properties if you need one now. The published "
+            "results computed on QBMED-HEME-001 are in "
+            "reproducibility/REPORT.md."
+        ) from error
 
     inst = _heme.build_profile().to_instance(instance_id=instance_id)
     if weight_scheme != "uniform":

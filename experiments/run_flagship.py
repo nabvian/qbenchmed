@@ -39,17 +39,40 @@ RES = Path(__file__).resolve().parents[1] / "results"
 SEED = 42
 
 
+def _flagship_instance():
+    """QBMED-HEME-001 where it is available, a synthetic stand-in otherwise.
+
+    QBMED-HEME-001 ships with this package, so the fallback normally never
+    fires. A partial install or a vendored subset can trip it, and then the
+    result is a real measurement of a shape-calibrated synthetic instance
+    rather than a reproduction of the published curve. The instance_id in
+    every output row says which one was solved.
+    """
+    try:
+        return ins.heme_benchmark(seed=SEED), True
+    except ins.HemeDomainUnavailable:
+        print("QBMED-HEME-001 is not in this checkout; using the synthetic "
+              "conjunctive panel instead. Numbers will not match the published "
+              "curve, and the instance_id records which instance was solved.")
+        return ins.conjunctive_panel(66, 88, seed=SEED), False
+
+
 def main() -> None:
     t_start = time.perf_counter()
     RES.mkdir(exist_ok=True)
 
-    inst = ins.heme_benchmark(seed=SEED)
+    inst, is_real = _flagship_instance()
     n_in = inst.n_inputs
+    # The benchmark_id follows the instance actually solved. Hardcoding the
+    # flagship id here once let a fallback run write a synthetic curve under
+    # the real instance's name, which is exactly the confusion the fallback
+    # docstring promises will not happen.
+    benchmark_id = inst.instance_id
 
     allrecs = rs.ResultSet()
     rows = []
     for K in range(1, n_in + 1):
-        spec = rn.RunSpec(benchmark_id="QBMED-HEME-001", input_budget=K,
+        spec = rn.RunSpec(benchmark_id=benchmark_id, input_budget=K,
                           benchmark_version="1.0.0",
                           notes="flagship coverage curve")
         out = rn.run_comparison(inst, spec, [{"algorithm": "ilp"},
@@ -96,14 +119,16 @@ def main() -> None:
     full = df[df.ilp_cov_achievable >= 1 - 1e-9]
     env = {
         "environment": rs.environment_fingerprint(),
-        "benchmark_id": "QBMED-HEME-001",
+        "benchmark_id": benchmark_id,
         "n_inputs": inst.n_inputs,
         "n_outcomes": inst.n_outcomes,
         "n_arms": inst.n_arms,
         "is_conjunctive": bool(inst.is_conjunctive),
         "instance_checksum": inst.checksum(),
         "seed": SEED,
-        "provenance": "real pathology export (implementation audit of a rule engine)",
+        "provenance": ("real pathology export (implementation audit of a rule "
+                       "engine)") if is_real else
+                      "synthetic stand-in, shape-calibrated to the flagship",
         "schema_version": rs.SCHEMA_VERSION,
         "total_runtime_s": round(time.perf_counter() - t_start, 1),
     }

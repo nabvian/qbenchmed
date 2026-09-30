@@ -7,8 +7,8 @@
     "outcomes_unreachable_by_any_selection": true,
     "coverage_at_budget_10": 0.5682,
     "ilp_runtime_ms_range": [
-      1.0,
-      10.7
+      0.8,
+      9.9
     ],
     "every_point_certified_optimal": true,
     "budget_range_swept": [
@@ -119,6 +119,6 @@
     "discarded_sweep": "noise_sweep_INVALID_phasebug.csv -- see REPORT.md"
   },
   "tests": {
-    "passing": 314
+    "passing": 354
   }
 }
