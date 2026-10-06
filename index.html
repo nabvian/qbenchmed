@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q-BenchMed — quantum vs classical on a real biomedical problem</title>
+<meta name="description" content="Run the Q-BenchMed benchmark in your browser: classical solvers and QAOA on the identical QUBO, the real 66-biomarker instance, and the penalty-free constrained mixer. No install.">
+<meta property="og:title" content="Q-BenchMed — does quantum optimisation help on a real biomedical problem?">
+<meta property="og:description" content="Classical solvers and QAOA on the identical QUBO. Run it in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='16' font-weight='700' text-anchor='middle' fill='white'%3EQ%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <div class="topline">
+      <span class="brand"><i aria-hidden="true">Q</i>Q-BenchMed</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/nabvian/qbenchmed">GitHub</a>
+        <a href="https://github.com/nabvian/qbenchmed/blob/main/reproducibility/REPORT.md">Full report</a>
+        <a href="https://colab.research.google.com/github/nabvian/qbenchmed/blob/main/notebooks/qbenchmed_colab.ipynb">Colab</a>
+      </nav>
+    </div>
+    <h1>Does quantum optimisation help on a real biomedical decision problem?</h1>
+    <p class="lede">Given biomarkers you could acquire and the clinical outcomes a rule engine can reach, which biomarkers cover the most outcomes? Classical solvers and QAOA get the <strong>identical QUBO</strong>, so any difference between them comes from the optimiser, not the problem. Everything below runs the real <code>qbm</code> package, live in your browser.</p>
+    <div class="runtime" id="runtime" role="status" aria-live="polite"><span class="dot"></span><span id="runtime-text">Loading the Python runtime (numpy, scipy)…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section aria-labelledby="found-title">
+    <p class="eyebrow">Published result · 25 instances per method</p>
+    <h2 id="found-title">What it found</h2>
+    <p class="section-copy">Share of instances on which each method reaches the certified optimum of the same QUBO (five sizes from 8 to 16 inputs, five seeds each). With 25 instances these rates are not separated by the data: QAOA at depth two is <strong>comparable</strong> to the classical heuristics, not better.</p>
+    <div class="card">
+      <div class="legend" aria-hidden="true"><span><i class="sw s1"></i>classical</span><span><i class="sw s2"></i>QAOA (noiseless simulation)</span></div>
+      <div id="chart-headtohead" class="chart"></div>
+      <details class="table-view"><summary>Table view</summary><div id="table-headtohead"></div></details>
+    </div>
+  </section>
+
+  <section aria-labelledby="play-title">
+    <p class="eyebrow">Run it yourself</p>
+    <h2 id="play-title">Every solver, one QUBO</h2>
+    <p class="section-copy">Generate an instance, build one QUBO, and let every method minimise <em>that object</em>. Exhaustive enumeration of the same QUBO supplies the certified optimum. Greedy is labelled <code>native</code>: it works on the coverage structure and is scored on the QUBO axis by completing the auxiliary variables optimally.</p>
+    <form class="card controls" id="play-form">
+      <label>Structure regime
+        <select name="regime">
+          <option value="degree_capped" selected>degree capped (published runs)</option>
+          <option value="low_overlap">low overlap</option>
+        </select>
+      </label>
+      <label>Inputs (biomarkers) <output name="n_out">10</output>
+        <input type="range" name="n_inputs" min="6" max="12" value="10">
+      </label>
+      <label>Panel budget <output name="b_out">30%</output>
+        <input type="range" name="budget" min="20" max="50" step="5" value="30">
+      </label>
+      <label>Seed
+        <input type="number" name="seed" min="0" max="999" value="0">
+      </label>
+      <fieldset>
+        <legend>QAOA depth</legend>
+        <label class="check"><input type="checkbox" name="depth" value="1" checked> p=1</label>
+        <label class="check"><input type="checkbox" name="depth" value="2" checked> p=2</label>
+        <label class="check"><input type="checkbox" name="depth" value="3"> p=3</label>
+      </fieldset>
+      <label class="check wide"><input type="checkbox" name="constrained" checked> Also compare the penalty-free constrained mixer</label>
+      <button type="submit" id="run-button" disabled>Run benchmark</button>
+      <p class="hint">The default settings take well under a minute; 12 inputs with every depth can take a few minutes, because QAOA is simulated in WebAssembly. The state-vector simulator stops at 12 inputs here and at 16 in the published runs. Only regimes whose outcomes each depend on at most two biomarkers are offered: they admit the compact pairwise QUBO (at most 15 qubits). The other five regimes need the slack encoding at 23 to 79 qubits, beyond any state-vector simulator.</p>
+    </form>
+    <div id="play-output" class="output" hidden>
+      <div class="chips" id="instance-chips"></div>
+      <div class="card"><div id="results-table"></div></div>
+      <div class="card" id="constrained-card" hidden>
+        <h3>Remove the penalty</h3>
+        <p class="section-copy small">Probability of sampling the optimum, against a random valid panel (the Dicke state before any layer). The constrained ansatz never leaves valid panels and uses only as many qubits as there are inputs.</p>
+        <div id="constrained-table"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="heme-title">
+    <p class="eyebrow">The real instance · QBMED-HEME-001</p>
+    <h2 id="heme-title">Where greedy stalls</h2>
+    <p class="section-copy">66 biomarkers and 88 outcomes from an audit export of a working pathology engine's trigger matrix (no patient data). 86 of its 116 rule arms fire only when several biomarkers are present together, so coverage is not submodular. Greedy stops at 94.32% however much budget it gets, while the certified branch-and-bound reaches the 96.59% ceiling.</p>
+    <div class="card">
+      <div class="legend" aria-hidden="true"><span><i class="sw s1"></i>certified optimum (ILP)</span><span><i class="sw s2"></i>greedy</span></div>
+      <div id="chart-heme" class="chart"></div>
+      <div class="row-actions">
+        <button type="button" id="heme-button" class="secondary" disabled>Re-solve live in your browser</button>
+        <span id="heme-status" class="muted" role="status" aria-live="polite"></span>
+      </div>
+      <details class="table-view" id="heme-details"><summary>Table view</summary><div id="table-heme"></div></details>
+    </div>
+  </section>
+
+  <section aria-labelledby="why-title">
+    <p class="eyebrow">Published result · why QAOA does not do better</p>
+    <h2 id="why-title">The penalty swamps the signal</h2>
+    <p class="section-copy">The budget constraint is encoded as a penalty. Those terms run 85 to 374 times larger than the coverage signal, leaving under 1% of the energy spectrum holding anything useful. A constrained ansatz with no penalty (Dicke start, XY ring mixer) beats a random valid panel on every instance; the penalty version almost always does worse than guessing.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Penalty dominance by size</h3>
+        <div id="table-landscape"></div>
+      </div>
+      <div class="card">
+        <h3>Lift over a random valid panel <span class="muted">(median of 25)</span></h3>
+        <div class="legend" aria-hidden="true"><span><i class="sw s2"></i>penalty QAOA</span><span><i class="sw s1"></i>constrained QAOA</span></div>
+        <div id="chart-lift" class="chart"></div>
+        <details class="table-view"><summary>Table view</summary><div id="table-lift"></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="honest" aria-labelledby="scope-title">
+    <h2 id="scope-title">Status, honestly</h2>
+    <ul>
+      <li>No quantum advantage is claimed. Everything quantum here is noiseless state-vector simulation; nothing has run on hardware.</li>
+      <li>Nothing extrapolates beyond 16 inputs, and at the sizes that can be simulated greedy still often finds the optimum.</li>
+      <li>A covering panel solves a coverage objective over a rule graph. It does not mean any biomarker is clinically unnecessary. Q-BenchMed is not a clinical validator or a diagnostic device.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="wrap footer">
+  <p>Q-BenchMed by Koushik Das · <a href="https://github.com/nabvian/qbenchmed">source on GitHub</a> · AGPL-3.0-or-later · Published figures are read from <code>results/</code> at build time; live runs use the unmodified <code>qbm</code> package in <a href="https://pyodide.org">Pyodide</a>.</p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
