@@ -2,6 +2,11 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nabvian/qbenchmed/blob/main/notebooks/qbenchmed_colab.ipynb)
+[![Try it in your browser](https://img.shields.io/badge/try%20it-in%20your%20browser-2a78d6)](https://nabvian.github.io/qbenchmed/)
+
+**[Try it in your browser →](https://nabvian.github.io/qbenchmed/)** Every solver on one QUBO, the real
+66-biomarker instance and the constrained mixer, running the real `qbm` package
+via Pyodide. No install.
 
 Does quantum optimisation help on a real biomedical decision problem?
 

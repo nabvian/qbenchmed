@@ -30,3 +30,4 @@ Platform/.qbenchmed/
 *.swp
 .idea/
 .vscode/
+_site/
