@@ -19,6 +19,7 @@
         <a href="https://github.com/nabvian/qbenchmed">GitHub</a>
         <a href="https://github.com/nabvian/qbenchmed/blob/main/reproducibility/REPORT.md">Full report</a>
         <a href="https://colab.research.google.com/github/nabvian/qbenchmed/blob/main/notebooks/qbenchmed_colab.ipynb">Colab</a>
+        <a href="#roadmap">Roadmap</a>
       </nav>
     </div>
     <h1>Does quantum optimisation help on a real biomedical decision problem?</h1>
@@ -120,6 +121,32 @@
       <li>Nothing extrapolates beyond 16 inputs, and at the sizes that can be simulated greedy still often finds the optimum.</li>
       <li>A covering panel solves a coverage objective over a rule graph. It does not mean any biomarker is clinically unnecessary. Q-BenchMed is not a clinical validator or a diagnostic device.</li>
     </ul>
+  </section>
+
+  <section id="roadmap" aria-labelledby="roadmap-title">
+    <p class="eyebrow">Future upgrades · from the Platform roadmap and the status notes</p>
+    <h2 id="roadmap-title">What comes next</h2>
+    <p class="section-copy">The classical side is finished and cross-validated, and Platform milestones 1–10 are implemented in source. These are the open items, each taken from <a href="https://github.com/nabvian/qbenchmed/blob/main/Platform/ROADMAP.md">Platform/ROADMAP.md</a> or the README's status notes.</p>
+    <div class="roadmap">
+      <div class="road-col">
+        <h3>Research</h3>
+        <article class="road"><b>Constrained mixer under noise</b><p>The penalty-free mixer beats random guessing in noiseless simulation. The next test is under noise, where its state-preparation cost counts against it.</p></article>
+        <article class="road"><b>Real quantum hardware</b><p>A provider executor that submits to quantum hardware, with credentials, a provider client and a separate review. Today the only executor is a local classical Ising solver, and it reports itself as classical.</p></article>
+        <article class="road"><b>Hardware embedding and native rescoring</b><p>Independently reviewed provider integrations that embed the problem on hardware, retrieve results and rescore them against the certified classical answer.</p></article>
+      </div>
+      <div class="road-col">
+        <h3>Platform</h3>
+        <article class="road"><b>Production biomedical adapters</b><p>Adapter and exporter packages for individual project families such as PATHEX and ONCOVA, built on the declarative adapter SDK that already exists.</p></article>
+        <article class="road"><b>More ways to bring data in</b><p>Immutable API-delta and local-bulk connectors, private-repository credential brokering, and more allowlisted Git hosts.</p></article>
+        <article class="road"><b>Long runs that survive</b><p>Background jobs, cancellation, progress streams and crash recovery, plus a stable plugin protocol for external executors.</p></article>
+      </div>
+      <div class="road-col">
+        <h3>Release and trust</h3>
+        <article class="road"><b>End-to-end fixtures on every OS</b><p>Repeatable tests for folder, archive and public GitHub intake across the supported operating systems.</p></article>
+        <article class="road"><b>Security hardening</b><p>Fuzz, property and security testing, accessibility automation, an SBOM, signed artifacts and cross-platform packaging.</p></article>
+        <article class="road"><b>Community release</b><p>A tagged public release once the verification gates pass: fmt, clippy, tests, cargo-deny and the recorded UI flows. A skipped capability is never reported as passing.</p></article>
+      </div>
+    </div>
   </section>
 </main>
 

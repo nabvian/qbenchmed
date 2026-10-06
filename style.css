@@ -144,3 +144,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
   .controls .wide { grid-column: auto; }
   nav { gap: 12px; }
 }
+
+/* Roadmap */
+.roadmap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.road-col { min-width: 0; }
+.road-col h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.road { background: var(--surface-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+.road b { display: block; margin-bottom: 4px; }
+.road p { margin: 0; color: var(--text-secondary); font-size: 14px; }
+@media (max-width: 860px) { .roadmap { grid-template-columns: 1fr; } }
